@@ -1,0 +1,191 @@
+// QuizMind AI — Prisma schema
+// Mirrors Section 6 (Database Schema) of quiz_system_architecture.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ────────────────────────────────────────────────
+enum QuizDifficulty {
+  beginner
+  intermediate
+  advanced
+}
+
+enum QuizType {
+  public
+  private
+}
+
+enum QuizStatus {
+  draft
+  scheduled
+  waiting
+  live
+  ended
+}
+
+enum QuestionType {
+  mcq
+  true_false
+  short_answer
+}
+
+enum QuestionDifficulty {
+  easy
+  medium
+  hard
+}
+
+enum SessionStatus {
+  waiting
+  live
+  ended
+}
+
+enum AttemptType {
+  live
+  later
+}
+
+enum UserTier {
+  free
+  pro
+  premium
+}
+
+// ── Models ───────────────────────────────────────────────
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(255)
+  username     String   @unique @db.VarChar(50)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  displayName  String?  @map("display_name") @db.VarChar(100)
+  avatarUrl    String?  @map("avatar_url")
+  phone        String?  @db.VarChar(30)
+  location     String?  @db.VarChar(120)
+  bio          String?
+  tier         UserTier @default(free)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  quizzes      Quiz[]
+  sessions     QuizSession[]
+  participants Participant[]
+
+  @@map("users")
+}
+
+model Quiz {
+  id            String         @id @default(uuid()) @db.Uuid
+  creatorId     String         @map("creator_id") @db.Uuid
+  title         String         @db.VarChar(255)
+  description   String?
+  subject       String?        @db.VarChar(100)
+  difficulty    QuizDifficulty @default(intermediate)
+  quizType      QuizType       @default(public) @map("quiz_type")
+  accessCode    String?        @unique @map("access_code") @db.VarChar(6)
+  passwordHash  String?        @map("password_hash") @db.VarChar(255)
+  allowLateJoin Boolean        @default(false) @map("allow_late_join")
+  status        QuizStatus     @default(draft)
+  scheduledAt   DateTime?      @map("scheduled_at") @db.Timestamptz
+  startedAt     DateTime?      @map("started_at") @db.Timestamptz
+  endedAt       DateTime?      @map("ended_at") @db.Timestamptz
+  timeLimitSecs Int            @default(30) @map("time_limit_secs")
+  durationMins  Int            @default(60) @map("duration_mins")
+  isAiGenerated Boolean        @default(false) @map("is_ai_generated")
+  totalPoints   Int            @default(0) @map("total_points")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+
+  creator   User          @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  questions Question[]
+  sessions  QuizSession[]
+
+  @@index([creatorId])
+  @@index([accessCode])
+  @@index([status])
+  @@map("quizzes")
+}
+
+model Question {
+  id            String             @id @default(uuid()) @db.Uuid
+  quizId        String             @map("quiz_id") @db.Uuid
+  questionText  String             @map("question_text")
+  questionType  QuestionType       @default(mcq) @map("question_type")
+  options       Json?
+  correctAnswer String             @map("correct_answer")
+  explanation   String?
+  points        Int                @default(10)
+  timeLimitSecs Int?               @map("time_limit_secs")
+  orderIndex    Int                @map("order_index")
+  difficulty    QuestionDifficulty @default(medium)
+  topicTag      String?            @map("topic_tag") @db.VarChar(100)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  quiz    Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers Answer[]
+
+  @@index([quizId, orderIndex])
+  @@map("questions")
+}
+
+model QuizSession {
+  id            String        @id @default(uuid()) @db.Uuid
+  quizId        String        @map("quiz_id") @db.Uuid
+  hostId        String        @map("host_id") @db.Uuid
+  status        SessionStatus @default(waiting)
+  currentQIndex Int           @default(0) @map("current_q_index")
+  startedAt     DateTime?     @map("started_at") @db.Timestamptz
+  endedAt       DateTime?     @map("ended_at") @db.Timestamptz
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  quiz         Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  host         User          @relation(fields: [hostId], references: [id])
+  participants Participant[]
+
+  @@index([quizId])
+  @@map("quiz_sessions")
+}
+
+model Participant {
+  id            String      @id @default(uuid()) @db.Uuid
+  sessionId     String      @map("session_id") @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
+  joinedAt      DateTime    @default(now()) @map("joined_at") @db.Timestamptz
+  score         Int         @default(0)
+  rank          Int?
+  timeTakenSecs Int?        @map("time_taken_secs")
+  completedAt   DateTime?   @map("completed_at") @db.Timestamptz
+  attemptType   AttemptType @default(live) @map("attempt_type")
+
+  session QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id])
+  answers Answer[]
+
+  @@index([sessionId])
+  @@map("participants")
+}
+
+model Answer {
+  id              String   @id @default(uuid()) @db.Uuid
+  participantId   String   @map("participant_id") @db.Uuid
+  questionId      String   @map("question_id") @db.Uuid
+  submittedAnswer String?  @map("submitted_answer")
+  isCorrect       Boolean? @map("is_correct")
+  pointsEarned    Int      @default(0) @map("points_earned")
+  timeTakenSecs   Int?     @map("time_taken_secs")
+  answeredAt      DateTime @default(now()) @map("answered_at") @db.Timestamptz
+
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  question    Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([participantId])
+  @@index([questionId])
+  @@map("answers")
+}

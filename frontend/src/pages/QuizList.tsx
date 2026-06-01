@@ -7,6 +7,9 @@ import {
   Target,
   Timer,
   Calendar,
+  Clock,
+  CalendarClock,
+  Infinity as InfinityIcon,
   Zap,
   Play,
   ArrowRight,
@@ -45,7 +48,15 @@ type Variant = "live" | "async" | "upcoming";
 const cfg: Record<Variant, { title: string; desc: string; match: (q: QuizItem) => boolean }> = {
   live: { title: "Live Quizzes", desc: "Quizzes currently running live — join now before they end.", match: (q) => q.status === "live" },
   async: { title: "Asynchronous Quizzes", desc: "Open to take anytime, at your own pace.", match: (q) => !["live", "scheduled", "draft"].includes(q.status) },
-  upcoming: { title: "Upcoming Quizzes", desc: "Scheduled quizzes — get ready to join when they go live.", match: (q) => q.status === "scheduled" },
+  upcoming: { title: "Scheduled Quizzes", desc: "These quizzes are scheduled to go live at a specific date and time — come back when they start.", match: (q) => q.status === "scheduled" },
+};
+
+const startsIn = (scheduledAt: string, now: number) => {
+  const r = Math.max(0, new Date(scheduledAt).getTime() - now);
+  const d = Math.floor(r / 86400000);
+  const h = Math.floor((r % 86400000) / 3600000);
+  const m = Math.floor((r % 3600000) / 60000);
+  return d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
 
 function subjectIcon(subject: string | null) {
@@ -125,11 +136,15 @@ export default function QuizList() {
       </button>
 
       <div className="mb-2 flex items-center gap-3">
-        {variant === "live" && (
+        {variant === "live" ? (
           <span className="relative flex size-3">
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#e7000b] opacity-75" />
             <span className="relative inline-flex size-3 rounded-full bg-[#e7000b]" />
           </span>
+        ) : variant === "async" ? (
+          <InfinityIcon className="size-7 text-[#2b7fff]" />
+        ) : (
+          <CalendarClock className="size-7 text-[#2b7fff]" />
         )}
         <h1 className="text-2xl font-bold tracking-tight">{cfg[variant].title}</h1>
         <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-[#71717b]">{filtered.length}</span>
@@ -176,18 +191,32 @@ export default function QuizList() {
                     <p className="text-sm text-[#71717b]">{q.subject ?? "General"} · {q._count?.questions ?? 0} questions</p>
                   </div>
                   <div className="flex items-center gap-4 text-sm">
-                    <span className="flex items-center gap-1.5"><Users className="size-4 text-[#71717b]" /> {q.participants ?? 0} joined</span>
-                    <span className="flex items-center gap-1.5"><Target className="size-4 text-[#71717b]" /> {q.accuracy ?? 0}% avg</span>
+                    <span className="flex items-center gap-1.5"><Users className="size-4 text-[#71717b]" /> {q.participants ?? 0} {variant === "upcoming" ? "registered" : "joined"}</span>
+                    {variant === "upcoming" ? (
+                      <span className="flex items-center gap-1.5"><Clock className="size-4 text-[#71717b]" /> {q.durationMins ?? 0}m</span>
+                    ) : (
+                      <span className="flex items-center gap-1.5"><Target className="size-4 text-[#71717b]" /> {q.accuracy ?? 0}% avg</span>
+                    )}
                   </div>
                   {variant === "live" && (
                     <div className="flex items-center gap-2 rounded-lg bg-[#e7000b]/10 px-3 py-2 text-sm font-medium text-[#e7000b]">
                       <Timer className="size-4" /> Ends in: {endsClock(q.scheduledAt, q.durationMins, now)}
                     </div>
                   )}
-                  {variant === "upcoming" && q.scheduledAt && (
-                    <div className="flex items-center gap-2 rounded-lg bg-[#2b7fff]/10 px-3 py-2 text-sm font-medium text-[#2b7fff]">
-                      <Calendar className="size-4" /> {new Date(q.scheduledAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                    </div>
+                  {variant === "upcoming" && (
+                    <>
+                      {q.quizType === "private" ? (
+                        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700"><Lock className="size-4 shrink-0" /> Private — password required to join.</div>
+                      ) : (
+                        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700"><Globe className="size-4 shrink-0" /> Open to all — join when it goes live.</div>
+                      )}
+                      {q.scheduledAt && (
+                        <div className="flex flex-col gap-1 rounded-lg bg-[#2b7fff]/10 px-3 py-2">
+                          <div className="flex items-center gap-2 text-xs text-zinc-950"><Calendar className="size-3.5 text-[#2b7fff]" /> Starts: {new Date(q.scheduledAt).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}</div>
+                          <div className="flex items-center gap-2 text-xs font-medium text-[#2b7fff]"><Timer className="size-3.5" /> Starts in: {startsIn(q.scheduledAt, now)}</div>
+                        </div>
+                      )}
+                    </>
                   )}
                   {variant === "async" && (
                     q.quizType === "private" ? (

@@ -12,6 +12,7 @@ const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const CreateQuiz = lazy(() => import("@/pages/CreateQuiz"));
 const Discover = lazy(() => import("@/pages/Discover"));
 const MyQuizzes = lazy(() => import("@/pages/MyQuizzes"));
+const QuizList = lazy(() => import("@/pages/QuizList"));
 const JoinQuiz = lazy(() => import("@/pages/JoinQuiz"));
 const PlayQuiz = lazy(() => import("@/pages/PlayQuiz"));
 const TakeQuiz = lazy(() => import("@/pages/TakeQuiz"));
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="/dashboard" element={protect(<Dashboard />)} />
           <Route path="/quiz/create" element={protect(<CreateQuiz />)} />
           <Route path="/discover" element={protect(<Discover />)} />
+          <Route path="/discover/:type" element={protect(<QuizList />)} />
           <Route path="/my-quizzes" element={protect(<MyQuizzes />)} />
           <Route path="/join/:quizId" element={protect(<JoinQuiz />)} />
           <Route path="/results" element={protect(<ResultsRedirect />)} />

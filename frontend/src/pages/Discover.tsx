@@ -214,7 +214,10 @@ export default function Discover() {
           <h2 className="text-lg font-semibold">{title}</h2>
           {badge}
         </div>
-        <span className="flex cursor-pointer items-center gap-1 text-sm font-medium text-[#71717b] hover:text-[#2b7fff]">
+        <span
+          className="flex cursor-pointer items-center gap-1 text-sm font-medium text-[#71717b] hover:text-[#2b7fff]"
+          onClick={() => navigate(`/discover/${variant}`)}
+        >
           View all <ArrowRight className="size-4" />
         </span>
       </div>

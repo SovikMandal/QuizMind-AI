@@ -1,0 +1,1 @@
+{"version":3,"file":"validate.js","sourceRoot":"","sources":["../../src/middlewares/validate.ts"],"names":[],"mappings":";;AAIA,oCAKC;AAND,8DAA8D;AAC9D,SAAgB,YAAY,CAAC,MAAiB;IAC5C,OAAO,CAAC,GAAG,EAAE,IAAI,EAAE,IAAI,EAAE,EAAE;QACzB,GAAG,CAAC,IAAI,GAAG,MAAM,CAAC,KAAK,CAAC,GAAG,CAAC,IAAI,CAAC,CAAC;QAClC,IAAI,EAAE,CAAC;IACT,CAAC,CAAC;AACJ,CAAC"}

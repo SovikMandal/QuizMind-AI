@@ -481,6 +481,92 @@ plaintext should never touch the database or a response body.
 
 ---
 
+## Feature 12 — Email deliverability & swapping providers (Resend → Brevo/Nodemailer)
+
+**Problem:** With Resend wired up, **no verification emails arrived**, yet no error showed in
+the UI.
+
+**Diagnosis:** The sender was Resend's sandbox address `onboarding@resend.dev`, which **only
+delivers to the Resend account owner's email** until a domain is verified. Every other
+recipient was silently rejected — and `sendMail` *catches* send errors (logs, returns), so the
+request still succeeded with nothing delivered. The clue was in the backend log:
+`Email send failed: You can only send testing emails to your own address…`.
+
+**Recovery / decision:** After hitting repeated deliverability friction, we **switched the
+provider to Brevo SMTP via Nodemailer**. The key design choice that made this painless: the
+mailer is a **single abstraction** — `sendMail(to, subject, html)` + `isMailConfigured`. Only
+`utils/mailer.ts` and the env keys changed (Resend client → Nodemailer SMTP transport;
+`RESEND_API_KEY` → `SMTP_HOST/PORT/USER/PASS`). **No calling code changed** — verification,
+reset, welcome, and cancel-OTP all kept working untouched.
+
+**Dev-testing improvement:** the OTP/verification code now logs to the server console in *all*
+non-production runs (previously only when email was unconfigured), so the flow is testable even
+while a real SMTP sender is mid-setup. Codes are never logged in production or returned over
+HTTP in production.
+
+**Interview talking point:** Wrapping the provider behind one `sendMail` function turned a
+provider migration into a ~20-line change. The deliverability bug was a reminder that a
+*caught-and-logged* failure can be worse than a thrown one — it hides the problem.
+
+---
+
+## Feature 13 — Verify-before-create signup + branded emails
+
+**Requirement:** Don't persist a user until their email OTP is verified — only on a correct
+code should the account be created, the user logged in, and redirected to the dashboard.
+
+### 13a. Pending registration in Redis (no DB write until verified)
+**Approach:** `register` no longer creates a `User`. It validates, checks the email/username
+aren't already taken, hashes the password, and stores a **pending registration in Redis**
+(`pendingreg:<email>`, 15-min TTL) holding `{ email, username, passwordHash, displayName,
+code }`. It emails the code and returns `202 { email, devCode? }` — **no user row, no token**.
+`verifyRegistration(email, code)` checks the code, then **creates the user** (`emailVerified:
+true`), deletes the pending key, issues tokens, and sends the welcome email.
+
+**Consequences handled:**
+- `verify-email` / `resend-verification` became **public** (no user exists yet) with validation
+  + rate-limiting; payloads changed to `{ email, code }` / `{ email }`.
+- **Duplicate detection** shifted: a duplicate is caught at register if a *created* user already
+  exists, otherwise by the unique constraint at verify time.
+- **Tests rewritten** to the two-step flow (register → verify with the returned `devCode`); all
+  11 pass.
+
+### 13b. The bug: verification popup never showed
+**Symptom:** after registering, the app jumped straight to the dashboard — the modal never
+appeared. **Cause:** `/signup` is wrapped in `PublicOnlyRoute`, which redirects *any* logged-in
+user to `/dashboard`; the old `signup()` set the user in the store on success, so the redirect
+fired and unmounted the page instantly.
+
+**Fix:** don't treat the user as logged-in until verified. `signup()` now stores **nothing**
+(register returns no token); the user + token are set only after `verify-email` succeeds. So
+`user` stays null through the modal, `PublicOnlyRoute` doesn't redirect, and the popup shows.
+
+**Interview talking point:** A route guard that keys off "is there a user?" will fight any
+flow that wants to keep an authed-but-not-finished user on a public page. The fix was to make
+"logged in" mean "verified," not "registered."
+
+### 13c. Branded transactional emails
+Added three reusable HTML templates in `utils/emailTemplates.ts` — **verification OTP**,
+**password reset**, and **welcome** — all matching the app's look.
+- The mockups referenced `https://yourdomain.com/logo.png`; since the app's logo is a *lucide
+  React icon* (no hosted image), that would render broken. I substituted an **email-safe text
+  logo** (`🧠 QuizMind AI`) that displays in every client (Gmail strips SVGs).
+- Links (`/dashboard`, reset link) are built from `FRONTEND_URL` so they work per-environment.
+- The reset email's "valid for 30 minutes" is **backed by reality** — I set the reset token
+  TTL to 30 min to match the copy.
+
+### 13d. Forgot-password redesign (two stages, one page)
+`/forgot-password` now renders its own header/footer (the global Navbar hides on auth routes)
+and switches between: a **request** stage (email → branded reset email) and a **set-new-password**
+stage reached via the emailed `?token=` link — with a live **strength meter** and a
+**requirements checklist** (8+ chars, number, special char, match) that gates the submit button.
+
+**Interview talking point:** Email HTML is its own constraint world — no React components, SVGs
+or external CSS are reliable, so a "logo" often has to be hosted PNG or plain text. I chose text
+to keep it dependency-free.
+
+---
+
 ## Cross-cutting engineering practices
 
 - **Read before write:** read the relevant modules before changing them; matched existing

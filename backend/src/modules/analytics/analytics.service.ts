@@ -81,7 +81,8 @@ export const AnalyticsService = {
   async analytics(sessionId: string, userId: string) {
     const session = await loadSession(sessionId);
     if (session.quiz.creatorId !== userId) {
-      throw ApiError.forbidden("Only the creator can view analytics");
+      const participant = await prisma.participant.findFirst({ where: { sessionId, userId } });
+      if (!participant) throw ApiError.forbidden("You did not take this quiz");
     }
 
     const participants = await prisma.participant.findMany({

@@ -60,6 +60,9 @@ export default function TakeQuiz() {
   const answersRef = useRef(answers);
   answersRef.current = answers;
   const submittedRef = useRef(false);
+  const timeRef = useRef<Record<string, number>>({});
+  const tickRef = useRef(Date.now());
+  const idxRef = useRef(0);
 
   // Attempt deadline: remaining live-window time if still open, else durationMins from now.
   const deadline = useMemo(() => {
@@ -73,13 +76,23 @@ export default function TakeQuiz() {
   }, []);
   const [timeLeft, setTimeLeft] = useState(() => Math.max(0, Math.round((deadline - Date.now()) / 1000)));
 
+  // Accrue elapsed time to the active question whenever the user switches.
+  useEffect(() => {
+    const prevId = questions[idxRef.current]?.id;
+    if (prevId) timeRef.current[prevId] = (timeRef.current[prevId] ?? 0) + (Date.now() - tickRef.current) / 1000;
+    tickRef.current = Date.now();
+    idxRef.current = idx;
+  }, [idx, questions]);
+
   const submit = async () => {
     if (submittedRef.current) return;
     submittedRef.current = true;
     setSubmitting(true);
+    const curId = questions[idxRef.current]?.id;
+    if (curId) timeRef.current[curId] = (timeRef.current[curId] ?? 0) + (Date.now() - tickRef.current) / 1000;
     try {
       await api.post(`/sessions/${sessionId}/submit`, {
-        answers: questions.map((q) => ({ questionId: q.id, answer: answersRef.current[q.id] ?? "" })),
+        answers: questions.map((q) => ({ questionId: q.id, answer: answersRef.current[q.id] ?? "", timeTaken: Math.round(timeRef.current[q.id] ?? 0) })),
       });
       navigate(`/results/${sessionId}`);
     } catch (err) {

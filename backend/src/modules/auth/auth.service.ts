@@ -3,7 +3,7 @@ import { redis } from "../../config/redis";
 import { randomUUID } from "crypto";
 import { env, isProd } from "../../config/env";
 import { sendMail, isMailConfigured } from "../../utils/mailer";
-import { otpEmailTemplate } from "../../utils/emailTemplates";
+import { otpEmailTemplate, forgotPasswordEmailTemplate, welcomeEmailTemplate } from "../../utils/emailTemplates";
 import { logger } from "../../utils/logger";
 import { hashPassword, verifyPassword } from "../../utils/password";
 import {
@@ -81,11 +81,7 @@ export const AuthService = {
       },
     });
     await redis.del(pendingKey(email));
-    void sendMail(
-      user.email,
-      "Welcome to QuizMind AI 🎉",
-      `<p>Hi ${user.displayName ?? user.username}, your email is verified — welcome to QuizMind AI!</p>`
-    );
+    void sendMail(user.email, "Welcome to QuizMind AI 🎉", welcomeEmailTemplate(user.displayName ?? user.username));
     const tokens = await issueTokens(user.id);
     return { user: toPublicUser(user), ...tokens };
   },
@@ -136,15 +132,13 @@ export const AuthService = {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return { devToken: undefined }; // don't reveal whether the email exists
     const token = randomUUID();
-    await redis.set(`reset:${token}`, user.id, "EX", 15 * 60);
+    await redis.set(`reset:${token}`, user.id, "EX", 30 * 60);
 
     const link = `${env.FRONTEND_URL}/forgot-password?token=${token}`;
     await sendMail(
       user.email,
       "Reset your QuizMind password",
-      `<p>We received a request to reset your password.</p>
-       <p><a href="${link}">Click here to choose a new password</a> (valid for 15 minutes).</p>
-       <p>If you didn't request this, you can safely ignore this email.</p>`
+      forgotPasswordEmailTemplate(user.displayName ?? user.username, link)
     );
 
     // Returned only outside production as a fallback when email isn't configured.

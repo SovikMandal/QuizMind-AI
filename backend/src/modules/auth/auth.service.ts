@@ -3,6 +3,7 @@ import { redis } from "../../config/redis";
 import { randomUUID } from "crypto";
 import { env, isProd } from "../../config/env";
 import { sendMail, isMailConfigured } from "../../utils/mailer";
+import { otpEmailTemplate } from "../../utils/emailTemplates";
 import { logger } from "../../utils/logger";
 import { hashPassword, verifyPassword } from "../../utils/password";
 import {
@@ -28,12 +29,8 @@ interface PendingReg {
 
 const newCode = () => String(Math.floor(100000 + Math.random() * 900000));
 
-async function emailCode(email: string, code: string) {
-  await sendMail(
-    email,
-    "Verify your QuizMind email",
-    `<p>Your verification code is <b style="font-size:18px">${code}</b>. It expires in 15 minutes.</p>`
-  );
+async function emailCode(email: string, code: string, name: string) {
+  await sendMail(email, "Verify your QuizMind email", otpEmailTemplate(name, code));
   if (!isProd) logger.info(`Email verification code for ${email}: ${code}`);
 }
 
@@ -62,7 +59,7 @@ export const AuthService = {
       code,
     };
     await redis.set(pendingKey(input.email), JSON.stringify(pending), "EX", 15 * 60);
-    await emailCode(input.email, code);
+    await emailCode(input.email, code, pending.displayName);
     // devCode is returned only outside production so the flow is testable without email.
     return { email: input.email, devCode: isProd ? undefined : code };
   },
@@ -169,6 +166,6 @@ export const AuthService = {
     const pending = JSON.parse(raw) as PendingReg;
     pending.code = newCode();
     await redis.set(pendingKey(email), JSON.stringify(pending), "EX", 15 * 60);
-    await emailCode(email, pending.code);
+    await emailCode(email, pending.code, pending.displayName);
   },
 };

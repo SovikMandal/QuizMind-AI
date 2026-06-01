@@ -35,8 +35,11 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
 
-  RESEND_API_KEY: z.string().optional(),
-  MAIL_FROM: z.string().default("QuizMind AI <onboarding@resend.dev>"),
+  SMTP_HOST: z.string().default("smtp-relay.brevo.com"),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  MAIL_FROM: z.string().default("QuizMind AI <no-reply@example.com>"),
 });
 
 const parsed = envSchema.safeParse(process.env);

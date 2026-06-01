@@ -1,18 +1,27 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { env } from "../config/env";
 import { logger } from "./logger";
 
-const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
-export const isMailConfigured = !!resend;
+const transporter =
+  env.SMTP_USER && env.SMTP_PASS
+    ? nodemailer.createTransport({
+        host: env.SMTP_HOST,
+        port: env.SMTP_PORT,
+        secure: env.SMTP_PORT === 465, // 465 = SSL, 587 = STARTTLS
+        auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+      })
+    : null;
 
-/** Sends an email via Resend. No-ops (with a warning) when RESEND_API_KEY is unset. */
+export const isMailConfigured = !!transporter;
+
+/** Sends an email via SMTP (Brevo). No-ops (with a warning) when SMTP isn't configured. */
 export async function sendMail(to: string, subject: string, html: string) {
-  if (!resend) {
+  if (!transporter) {
     logger.warn(`Email not configured — skipped "${subject}" to ${to}`);
     return;
   }
   try {
-    await resend.emails.send({ from: env.MAIL_FROM, to, subject, html });
+    await transporter.sendMail({ from: env.MAIL_FROM, to, subject, html });
   } catch (e) {
     logger.error(`Email send failed: ${e instanceof Error ? e.message : e}`);
   }

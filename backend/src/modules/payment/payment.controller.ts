@@ -18,5 +18,10 @@ export const verifyPayment: RequestHandler = async (req, res) => {
 };
 
 export const cancel: RequestHandler = async (req, res) => {
-  res.json({ user: await PaymentService.cancel(req.user!.id) });
+  res.json({ user: await PaymentService.cancel(req.user!.id, req.body.otp) });
+};
+
+export const requestCancelOtp: RequestHandler = async (req, res) => {
+  await PaymentService.requestCancelOtp(req.user!.id);
+  res.json({ ok: true });
 };

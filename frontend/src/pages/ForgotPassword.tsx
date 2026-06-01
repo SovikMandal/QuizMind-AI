@@ -1,5 +1,5 @@
-import { FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { FormEvent, useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Brain, Mail, Lock, KeyRound } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { Button, Card, Input, Label } from "@/components/ui";
@@ -13,6 +13,15 @@ export default function ForgotPassword() {
   const [info, setInfo] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const t = searchParams.get("token");
+    if (t) {
+      setToken(t);
+      setStage("reset");
+    }
+  }, [searchParams]);
 
   const request = async (e: FormEvent) => {
     e.preventDefault();

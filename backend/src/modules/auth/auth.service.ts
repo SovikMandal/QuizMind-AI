@@ -1,7 +1,9 @@
 import { prisma } from "../../config/db";
 import { redis } from "../../config/redis";
 import { randomUUID } from "crypto";
-import { isProd } from "../../config/env";
+import { env, isProd } from "../../config/env";
+import { sendMail, isMailConfigured } from "../../utils/mailer";
+import { logger } from "../../utils/logger";
 import { hashPassword, verifyPassword } from "../../utils/password";
 import {
   signAccessToken,
@@ -14,6 +16,26 @@ import { RegisterInput, LoginInput } from "./auth.schemas";
 
 const REFRESH_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const refreshKey = (userId: string, jti: string) => `refresh:${userId}:${jti}`;
+const pendingKey = (email: string) => `pendingreg:${email.toLowerCase()}`;
+
+interface PendingReg {
+  email: string;
+  username: string;
+  passwordHash: string;
+  displayName: string;
+  code: string;
+}
+
+const newCode = () => String(Math.floor(100000 + Math.random() * 900000));
+
+async function emailCode(email: string, code: string) {
+  await sendMail(
+    email,
+    "Verify your QuizMind email",
+    `<p>Your verification code is <b style="font-size:18px">${code}</b>. It expires in 15 minutes.</p>`
+  );
+  if (!isProd) logger.info(`Email verification code for ${email}: ${code}`);
+}
 
 async function issueTokens(userId: string) {
   const accessToken = signAccessToken(userId);
@@ -24,15 +46,49 @@ async function issueTokens(userId: string) {
 
 export const AuthService = {
   async register(input: RegisterInput) {
+    const existing = await prisma.user.findFirst({
+      where: { OR: [{ email: input.email }, { username: input.username }] },
+    });
+    if (existing) {
+      throw ApiError.conflict(existing.email === input.email ? "Email already registered" : "Username already taken");
+    }
     const passwordHash = await hashPassword(input.password);
+    const code = newCode();
+    const pending: PendingReg = {
+      email: input.email,
+      username: input.username,
+      passwordHash,
+      displayName: input.displayName ?? input.username,
+      code,
+    };
+    await redis.set(pendingKey(input.email), JSON.stringify(pending), "EX", 15 * 60);
+    await emailCode(input.email, code);
+    // devCode is returned only outside production so the flow is testable without email.
+    return { email: input.email, devCode: isProd ? undefined : code };
+  },
+
+  /** Verifies the code, then actually creates the user and logs them in. */
+  async verifyRegistration(email: string, code: string) {
+    const raw = await redis.get(pendingKey(email));
+    if (!raw) throw ApiError.badRequest("Registration expired — please sign up again");
+    const pending = JSON.parse(raw) as PendingReg;
+    if (pending.code !== code) throw ApiError.badRequest("Invalid or expired code");
+
     const user = await prisma.user.create({
       data: {
-        email: input.email,
-        username: input.username,
-        passwordHash,
-        displayName: input.displayName ?? input.username,
+        email: pending.email,
+        username: pending.username,
+        passwordHash: pending.passwordHash,
+        displayName: pending.displayName,
+        emailVerified: true,
       },
     });
+    await redis.del(pendingKey(email));
+    void sendMail(
+      user.email,
+      "Welcome to QuizMind AI 🎉",
+      `<p>Hi ${user.displayName ?? user.username}, your email is verified — welcome to QuizMind AI!</p>`
+    );
     const tokens = await issueTokens(user.id);
     return { user: toPublicUser(user), ...tokens };
   },
@@ -84,7 +140,18 @@ export const AuthService = {
     if (!user) return { devToken: undefined }; // don't reveal whether the email exists
     const token = randomUUID();
     await redis.set(`reset:${token}`, user.id, "EX", 15 * 60);
-    return { devToken: isProd ? undefined : token };
+
+    const link = `${env.FRONTEND_URL}/forgot-password?token=${token}`;
+    await sendMail(
+      user.email,
+      "Reset your QuizMind password",
+      `<p>We received a request to reset your password.</p>
+       <p><a href="${link}">Click here to choose a new password</a> (valid for 15 minutes).</p>
+       <p>If you didn't request this, you can safely ignore this email.</p>`
+    );
+
+    // Returned only outside production as a fallback when email isn't configured.
+    return { devToken: isProd || isMailConfigured ? undefined : token };
   },
 
   async resetPassword(token: string, password: string) {
@@ -94,5 +161,14 @@ export const AuthService = {
     const passwordHash = await hashPassword(password);
     await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
     await redis.del(key);
+  },
+
+  async resendVerification(email: string) {
+    const raw = await redis.get(pendingKey(email));
+    if (!raw) return;
+    const pending = JSON.parse(raw) as PendingReg;
+    pending.code = newCode();
+    await redis.set(pendingKey(email), JSON.stringify(pending), "EX", 15 * 60);
+    await emailCode(email, pending.code);
   },
 };

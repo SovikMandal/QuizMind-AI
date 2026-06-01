@@ -16,7 +16,8 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useAuth } from "@/stores/auth";
-import { apiError } from "@/lib/api";
+import { api, apiError, tokenStore } from "@/lib/api";
+import { EmailVerifyModal } from "@/components/EmailVerifyModal";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui";
 
@@ -25,12 +26,13 @@ const inputBase =
 const features = ["AI question generation", "Live & async quiz modes", "Real-time analytics"];
 
 export default function Signup() {
-  const { signup } = useAuth();
+  const { signup, setUser } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ displayName: "", username: "", email: "", password: "", confirm: "" });
   const [agree, setAgree] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [verify, setVerify] = useState(false);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -47,7 +49,7 @@ export default function Signup() {
         email: form.email,
         password: form.password,
       });
-      navigate("/dashboard");
+      setVerify(true);
     } catch (err) {
       toast.error(apiError(err, "Sign up failed"));
     } finally {
@@ -57,6 +59,22 @@ export default function Signup() {
 
   return (
     <div className="w-full bg-white text-zinc-950">
+      {verify && (
+        <EmailVerifyModal
+          email={form.email}
+          onResend={async () => {
+            await api.post("/auth/resend-verification", { email: form.email });
+          }}
+          onBack={() => navigate("/login")}
+          onVerify={async (code) => {
+            const res = await api.post("/auth/verify-email", { email: form.email, code });
+            tokenStore.set(res.data.accessToken);
+            setUser(res.data.user);
+            toast.success("Email verified — welcome!");
+            navigate("/dashboard");
+          }}
+        />
+      )}
       <div className="flex min-h-screen w-full">
         {/* Left branding panel */}
         <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-[linear-gradient(160deg,oklch(0.623_0.214_259.815)_0%,oklch(0.546_0.215_262.881)_100%)] p-12 text-blue-50 lg:flex">

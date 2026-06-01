@@ -1,29 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { ShieldCheck, Clock, ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
+import { apiError } from "@/lib/api";
 import { Button, cn } from "@/components/ui";
 
 const OTP_LENGTH = 6;
 const OTP_SECONDS = 300;
 
-/**
- * Placeholder verification — no backend yet.
- * TODO: replace the body with the real call once the OTP API exists, e.g.
- *   const { data } = await api.post("/payments/cancel/verify-otp", { code });
- *   return data.valid;
- */
-async function verifyOtp(code: string): Promise<boolean> {
-  return code.length === OTP_LENGTH;
-}
-
 export function OtpModal({
   email,
   onBack,
-  onVerified,
+  onSubmit,
+  onResend,
 }: {
   email: string;
   onBack: () => void;
-  onVerified: () => void | Promise<void>;
+  onSubmit: (code: string) => Promise<void>;
+  onResend?: () => Promise<void> | void;
 }) {
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(""));
   const [seconds, setSeconds] = useState(OTP_SECONDS);
@@ -48,19 +41,22 @@ export function OtpModal({
     if (e.key === "Backspace" && !digits[i] && i > 0) refs.current[i - 1]?.focus();
   };
 
-  const resend = () => {
+  const resend = async () => {
     setDigits(Array(OTP_LENGTH).fill(""));
     setSeconds(OTP_SECONDS);
     refs.current[0]?.focus();
+    await onResend?.();
     toast.success("A new code has been sent");
   };
 
   const confirm = async () => {
     setVerifying(true);
-    const ok = await verifyOtp(code);
-    setVerifying(false);
-    if (ok) await onVerified();
-    else toast.error("Invalid or expired code");
+    try {
+      await onSubmit(code);
+    } catch (err) {
+      toast.error(apiError(err, "Invalid or expired code"));
+      setVerifying(false);
+    }
   };
 
   return (

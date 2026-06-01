@@ -10,3 +10,5 @@ export const verifyPaymentSchema = z.object({
   razorpayPaymentId: z.string().min(1),
   razorpaySignature: z.string().min(1),
 });
+
+export const cancelSchema = z.object({ otp: z.string().min(4).max(8) });

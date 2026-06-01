@@ -34,6 +34,9 @@ const envSchema = z.object({
 
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
+
+  RESEND_API_KEY: z.string().optional(),
+  MAIL_FROM: z.string().default("QuizMind AI <onboarding@resend.dev>"),
 });
 
 const parsed = envSchema.safeParse(process.env);

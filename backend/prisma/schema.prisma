@@ -71,6 +71,7 @@ model User {
   location     String?  @db.VarChar(120)
   bio          String?
   tier         UserTier @default(free)
+  emailVerified Boolean @default(false) @map("email_verified")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
 

@@ -32,9 +32,8 @@ export const useAuth = create<AuthState>((set) => ({
   },
 
   signup: async (data) => {
-    const res = await api.post("/auth/register", data);
-    tokenStore.set(res.data.accessToken);
-    set({ user: res.data.user });
+    await api.post("/auth/register", data);
+    // The user is created + logged in only after email verification (see Signup).
   },
 
   logout: async () => {

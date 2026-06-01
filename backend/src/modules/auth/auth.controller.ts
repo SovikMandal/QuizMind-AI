@@ -6,9 +6,8 @@ import { prisma } from "../../config/db";
 import { ApiError } from "../../utils/ApiError";
 
 export const register: RequestHandler = async (req, res) => {
-  const { user, accessToken, refreshToken } = await AuthService.register(req.body);
-  setRefreshCookie(res, refreshToken);
-  res.status(201).json({ user, accessToken });
+  const result = await AuthService.register(req.body);
+  res.status(202).json(result);
 };
 
 export const login: RequestHandler = async (req, res) => {
@@ -46,4 +45,15 @@ export const forgotPassword: RequestHandler = async (req, res) => {
 export const resetPassword: RequestHandler = async (req, res) => {
   await AuthService.resetPassword(req.body.token, req.body.password);
   res.json({ message: "Password updated. You can now sign in." });
+};
+
+export const verifyEmail: RequestHandler = async (req, res) => {
+  const { user, accessToken, refreshToken } = await AuthService.verifyRegistration(req.body.email, req.body.code);
+  setRefreshCookie(res, refreshToken);
+  res.status(201).json({ user, accessToken });
+};
+
+export const resendVerification: RequestHandler = async (req, res) => {
+  await AuthService.resendVerification(req.body.email);
+  res.json({ ok: true });
 };

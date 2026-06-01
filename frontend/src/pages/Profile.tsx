@@ -114,15 +114,25 @@ export default function Profile() {
     navigate("/login");
   };
 
-  const doCancel = async () => {
+  const requestOtp = async () => {
+    await api.post("/payments/cancel/request-otp");
+  };
+
+  const startOtp = async () => {
     try {
-      const res = await api.post("/payments/cancel");
-      setUser(res.data.user);
-      setCancelStep(null);
-      toast.success("Plan cancelled — you're on the Free plan");
+      await requestOtp();
+      setCancelStep("otp");
+      toast.success("We've emailed you a verification code");
     } catch (err) {
-      toast.error(apiError(err, "Could not cancel plan"));
+      toast.error(apiError(err, "Could not send code"));
     }
+  };
+
+  const confirmCancel = async (code: string) => {
+    const res = await api.post("/payments/cancel", { otp: code });
+    setUser(res.data.user);
+    setCancelStep(null);
+    toast.success("Plan cancelled — you're on the Free plan");
   };
 
   if (!user) return null;
@@ -381,7 +391,7 @@ export default function Profile() {
               </div>
               <div className="flex gap-4 pt-2">
                 <Button variant="outline" className="flex-1" onClick={() => setCancelStep(null)}>Keep My Plan</Button>
-                <button onClick={() => setCancelStep("otp")} className="flex-1 rounded-lg bg-[#e7000b] py-2 text-sm font-medium text-white">
+                <button onClick={startOtp} className="flex-1 rounded-lg bg-[#e7000b] py-2 text-sm font-medium text-white">
                   Yes, Cancel Plan
                 </button>
               </div>
@@ -391,7 +401,7 @@ export default function Profile() {
       )}
 
       {cancelStep === "otp" && (
-        <OtpModal email={user.email} onBack={() => setCancelStep("confirm")} onVerified={doCancel} />
+        <OtpModal email={user.email} onBack={() => setCancelStep("confirm")} onResend={requestOtp} onSubmit={confirmCancel} />
       )}
     </main>
   );

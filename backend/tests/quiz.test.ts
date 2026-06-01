@@ -6,9 +6,9 @@ const rnd = () => Math.random().toString(36).slice(2, 8);
 
 async function authToken() {
   const id = rnd();
-  const res = await request(app)
-    .post("/api/v1/auth/register")
-    .send({ email: `${id}@test.com`, username: `u${id}`, password: "password123" });
+  const user = { email: `${id}@test.com`, username: `u${id}`, password: "password123" };
+  const reg = await request(app).post("/api/v1/auth/register").send(user);
+  const res = await request(app).post("/api/v1/auth/verify-email").send({ email: user.email, code: reg.body.devCode });
   return res.body.accessToken as string;
 }
 

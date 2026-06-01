@@ -410,6 +410,77 @@ room id. Because I didn't hard-code "session" into it, the *same* code powered a
 
 ---
 
+## Feature 11 — Email integration (Resend) + emailed cancellation OTP
+
+**Requirement:** Send real emails — a welcome email on signup, a password‑reset link, and a
+**one‑time code (OTP)** that must be verified before a paid plan can be cancelled.
+
+### 11a. Picking the right tool — the testmail.app mix‑up
+**Challenge:** The first instruction was "use testmail.app for the email API." But **testmail.app
+doesn't send email** — it's a *testing/capture* service: it gives you inbox addresses
+(`{namespace}.{tag}@inbox.testmail.app`) and an API to **read** received emails so you can assert
+them in automated tests. Wiring it as a sender would have been a dead end.
+
+**Thought process / recovery:** Rather than build the wrong thing, I separated the two concerns —
+*sending* vs *verifying* — explained that testmail.app only does the latter, and asked for a real
+sender. We landed on **Resend**, a transactional email API. (testmail.app can still be the test
+inbox later, but it needs a verified sending domain in Resend to receive from us.)
+
+**Interview talking point:** Recognizing a tool/requirement mismatch early and pausing to
+re‑scope saved building an integration that could never work.
+
+### 11b. Integrating the API key safely
+- Added the `resend` SDK and a single **mailer util** (`utils/mailer.ts`) exposing
+  `sendMail(to, subject, html)` and an `isMailConfigured` flag.
+- The key lives in env (`RESEND_API_KEY`, optional) validated by Zod, plus a `MAIL_FROM`
+  (defaults to Resend's test sender `onboarding@resend.dev`). It's documented in `.env.example`
+  and **kept out of git** (`.env` is git‑ignored).
+- **Graceful degradation:** if the key is unset, `sendMail` **no‑ops with a warning** instead of
+  throwing — so signup/reset never break in environments without email. The Resend client is
+  created only when the key exists.
+
+### 11c. The OTP workflow (generate → store → email → verify)
+This is the core of the cancellation flow. Two endpoints:
+
+1. `POST /payments/cancel/request-otp`
+   - **Generate:** a 6‑digit numeric code — `String(Math.floor(100000 + Math.random()*900000))`.
+   - **Store:** in **Redis** under `cancelotp:<userId>` with a **600s (10‑min) TTL**
+     (`redis.set(key, code, "EX", 600)`). Redis is the right home — it's short‑lived, auto‑expiring,
+     and never needs to live in Postgres.
+   - **Email:** the code is sent to the user via Resend. **The plaintext code is never stored in
+     the database and never returned in the API response** (the response is just `{ ok: true }`).
+   - **Dev fallback:** if email isn't configured *and* not production, the code is written to the
+     **server log** so the flow is testable without a real inbox — but never exposed over HTTP.
+
+2. `POST /payments/cancel` (now requires `{ otp }`)
+   - **Validate:** read `cancelotp:<userId>` from Redis and compare to the submitted code. Missing
+     or mismatched → `400 "Invalid or expired code"`. Expiry is handled *for free* by the TTL —
+     no manual timestamp checks.
+   - **Consume + act:** on success, **delete the key** (single‑use) and downgrade the user to
+     `free`, returning the updated user.
+
+**Where the code lives / doesn't:**
+- ✅ In **Redis**, briefly, as the source of truth for verification (TTL‑expiring, single‑use).
+- ✅ In the **user's inbox** (delivered by Resend).
+- ❌ **Never** in Postgres, never hashed‑and‑stored long‑term, never sent back in any API
+  response. (It's a short‑lived secret, so plaintext‑in‑Redis‑with‑TTL is acceptable, unlike the
+  account password which is bcrypt‑hashed forever.)
+
+**Frontend wiring:** "Yes, Cancel Plan" calls `request-otp` (emails the code) and opens the OTP
+modal; entering the code calls `/payments/cancel`. The `OtpModal` was refactored from a
+placeholder stub into a reusable component with `onSubmit(code)` / `onResend()` props, so the
+verification logic lives in the parent and the modal stays generic.
+
+**Password reset** reuses the same idea: a `randomUUID` token in Redis (15‑min TTL) emailed as a
+`/forgot-password?token=…` link; the page reads the token from the query string. The dev‑token
+fallback is now only used when **neither** production **nor** email is configured.
+
+**Interview talking point:** OTPs and reset tokens are *ephemeral secrets* — Redis with a TTL is
+the natural store (auto‑expiry = built‑in "code expired" logic, `DEL` = single‑use), and the
+plaintext should never touch the database or a response body.
+
+---
+
 ## Cross-cutting engineering practices
 
 - **Read before write:** read the relevant modules before changing them; matched existing

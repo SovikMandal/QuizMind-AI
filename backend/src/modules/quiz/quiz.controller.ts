@@ -39,3 +39,17 @@ export const publish: RequestHandler<{ id: string }> = async (req, res) => {
   const quiz = await QuizService.publish(req.params.id);
   res.json({ quiz });
 };
+
+export const remind: RequestHandler<{ id: string }> = async (req, res) => {
+  await QuizService.addReminder(req.user!.id, req.params.id);
+  res.json({ ok: true });
+};
+
+export const cancelRemind: RequestHandler<{ id: string }> = async (req, res) => {
+  await QuizService.removeReminder(req.user!.id, req.params.id);
+  res.json({ ok: true });
+};
+
+export const listReminders: RequestHandler = async (req, res) => {
+  res.json({ quizIds: await QuizService.listReminderQuizIds(req.user!.id) });
+};

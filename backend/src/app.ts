@@ -14,6 +14,7 @@ import questionRoutes from "./modules/quiz/question.routes";
 import sessionRoutes from "./modules/session/session.routes";
 import aiRoutes from "./modules/ai/ai.routes";
 import paymentRoutes from "./modules/payment/payment.routes";
+import notificationRoutes from "./modules/notification/notification.routes";
 
 export function createApp() {
   const app = express();
@@ -45,6 +46,7 @@ export function createApp() {
   api.use("/sessions", sessionRoutes);
   api.use("/ai", aiRoutes);
   api.use("/payments", paymentRoutes);
+  api.use("/notifications", notificationRoutes);
   app.use("/api/v1", api);
 
   app.use(notFoundHandler);

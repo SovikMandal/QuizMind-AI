@@ -20,6 +20,7 @@ const Results = lazy(() => import("@/pages/Results"));
 const ResultsRedirect = lazy(() => import("@/pages/ResultsRedirect"));
 const Analytics = lazy(() => import("@/pages/Analytics"));
 const Profile = lazy(() => import("@/pages/Profile"));
+const Notifications = lazy(() => import("@/pages/Notifications"));
 const Pricing = lazy(() => import("@/pages/Pricing"));
 const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
 
@@ -65,6 +66,7 @@ export default function App() {
           <Route path="/results/:sessionId" element={protect(<Results />)} />
           <Route path="/analytics/:sessionId" element={protect(<Analytics />)} />
           <Route path="/profile" element={protect(<Profile />)} />
+          <Route path="/notifications" element={protect(<Notifications />)} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

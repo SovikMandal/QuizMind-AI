@@ -12,12 +12,15 @@ router.use(authenticate);
 
 router.get("/", quiz.list);
 router.get("/mine", quiz.listMine);
+router.get("/reminders", quiz.listReminders);
 router.post("/", validateBody(createQuizSchema), quiz.create);
 router.get("/:id", quiz.getOne);
 router.get("/:id/info", quiz.info);
 router.put("/:id", isQuizCreator, validateBody(updateQuizSchema), quiz.update);
 router.delete("/:id", isQuizCreator, quiz.remove);
 router.post("/:id/publish", isQuizCreator, quiz.publish);
+router.post("/:id/remind", quiz.remind);
+router.delete("/:id/remind", quiz.cancelRemind);
 
 router.get("/:id/questions", question.list);
 router.post("/:id/questions", isQuizCreator, validateBody(addQuestionSchema), question.add);

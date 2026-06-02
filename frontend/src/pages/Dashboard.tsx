@@ -29,6 +29,7 @@ import {
 import { api } from "@/lib/api";
 import { useAuth } from "@/stores/auth";
 import { Button } from "@/components/ui";
+import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 
 const card = "rounded-2xl border border-zinc-200 bg-white shadow-sm";
 
@@ -54,11 +55,14 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [dash, setDash] = useState<DashboardData | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/users/me/dashboard").then((r) => setDash(r.data)).catch(() => {});
+    api.get("/users/me/dashboard").then((r) => setDash(r.data)).catch(() => {}).finally(() => setLoading(false));
     api.get("/users/me/history").then((r) => setHistory(r.data.participated)).catch(() => {});
   }, []);
+
+  if (loading) return <DashboardSkeleton />;
 
   const s = dash?.stats;
   const statCards = [

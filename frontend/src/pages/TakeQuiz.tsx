@@ -16,6 +16,7 @@ import { api, apiError } from "@/lib/api";
 import toast from "react-hot-toast";
 import { connectQuizSocket } from "@/lib/socket";
 import { Button, Card, Badge, cn } from "@/components/ui";
+import { TakeQuizSkeleton } from "@/components/TakeQuizSkeleton";
 
 interface Opt { id: string; text: string }
 interface Q { id: string; questionText: string; questionType: string; options?: Opt[]; difficulty?: string }
@@ -137,6 +138,8 @@ export default function TakeQuiz() {
     navigate("/discover", { replace: true });
     return null;
   }
+
+  if (questions.length === 0) return <TakeQuizSkeleton />;
 
   const q = questions[idx];
   const total = questions.length;

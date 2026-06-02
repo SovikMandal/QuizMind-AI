@@ -7,7 +7,6 @@ import {
   BarChart3,
   Plus,
   Tag,
-  Bell,
   ChevronDown,
   Settings,
   LogOut,
@@ -15,6 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/stores/auth";
 import { Button, cn } from "./ui";
+import { NotificationBell } from "./NotificationBell";
 
 const NAV_ITEMS: { to: string; label: string; Icon: LucideIcon }[] = [
   { to: "/dashboard", label: "Dashboard", Icon: LayoutGrid },
@@ -79,10 +79,7 @@ export function Navbar() {
 
       {user ? (
         <div className="flex flex-1 items-center justify-end gap-10">
-          <button className="relative" aria-label="Notifications">
-            <Bell className="size-5 text-[#71717b] cursor-pointer" />
-            <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-[#2b7fff]" />
-          </button>
+          <NotificationBell />
 
           <div className="relative">
             <button

@@ -667,7 +667,157 @@ fills or everything's loaded. No backend change — `list` already returned `{ t
 server-side pagination of that filter needs raw SQL; the pragmatic middle ground is paged raw
 fetches + client filter + an observer that keeps pulling until the view is satisfied.
 
+## Feature 15 — In-app notification system
+
+**Requirement:** Notify users on six events — **upcoming quiz**, **major system update**,
+**subscription expiring within 5 days**, **monthly quiz-creation limit reached**, **plan
+cancelled**, and **plan purchased** — surfaced via the navbar bell, with a full notifications
+page reachable through "View all."
+
+### System design (the architecture I'd whiteboard)
+**Data model.** One `Notification` row per user-facing event:
+`{ id, userId, type (enum), title, body?, link?, read, createdAt }`, indexed on
+`(userId, read)` so the unread-count and per-user list queries stay cheap. `type` is a Postgres
+enum of the six cases; `link` is an optional in-app deep link (e.g. `/pricing`, `/join/:id`).
+
+**Two ways notifications are born:**
+1. **Event-driven (push at write time).** A reusable `NotificationService.create()` is called
+   from the code paths that already own the event:
+   - `payment.verifyAndUpgrade` → `plan_purchased`
+   - `payment.cancel` → `plan_cancelled`
+   - `quiz.create` → `quiz_limit_reached` (fires the moment the just-created quiz hits the cap)
+2. **Derived (materialized lazily on read).** Time-based events have no natural write moment, so
+   `syncDerived(userId)` runs at the top of `list()` and `unreadCount()` and inserts (deduped)
+   any notifications that have become "true" since last check:
+   - `subscription_expiring` when `subscriptionEndsAt` is within 5 days
+   - `upcoming_quiz` for the user's own scheduled quizzes starting within 24h
+
+**API surface** (`/api/v1/notifications`, all auth-guarded):
+`GET /` (latest 50), `GET /unread-count`, `PATCH /:id/read`, `PATCH /read-all`, `DELETE /:id`.
+
+**Frontend.** A `NotificationBell` polls `unread-count` every 30s for the badge, loads the list
+on open, shows the **5 most recent** with "View all," and marks-read / mark-all-read. The full
+`/notifications` page reuses the same API with tabs (All/Unread/Quizzes/System), Today/Yesterday/
+Older grouping, and dismiss.
+
+### Challenges & decisions
+
+**1. Time-based triggers with no scheduler.** "Expiring in 5 days" and "starts in 24h" usually
+imply a cron job. Adding a background scheduler to a single-process app is extra moving parts
+(and double-fires across restarts). **Decision:** generate these **lazily on fetch** — when the
+user actually looks at notifications, `syncDerived` checks the conditions and inserts what's due.
+No scheduler, and notifications can't exist unseen. *Trade-off:* a user who never opens the app
+never gets them — acceptable for in-app (vs email) notifications.
+
+**2. Idempotency / no duplicate spam.** Lazy generation runs on every fetch, so it must not
+re-insert. **Solution:** dedupe per event — `upcoming_quiz` is deduped by its `link`
+(`/join/:quizId`); `subscription_expiring` by "does one already exist created within this 5-day
+window" (`createdAt >= endsAt − 5d`), which also lets a *new* notification fire after renewal.
+
+**3. "Subscription expiring" had no data to stand on.** The app never stored a real expiry —
+the Profile page faked a renewal date from `createdAt`. **Solution:** added
+`User.subscriptionEndsAt`, set to `now + 30d` on purchase and `null` on cancel, so the 5-day
+trigger is backed by a real field instead of a UI guess.
+
+**4. "Upcoming quiz" — notify whom?** There's no pre-registration: a user has no relationship to
+a future quiz until they join at start time. The only concrete link in the data is **creator →
+their scheduled quiz**. **Decision:** notify the creator that *their* quiz goes live soon, and
+flagged the assumption rather than inventing a "followers"/registration table.
+
+**5. "System update" is a broadcast with no admin.** There's no admin UI to author one.
+**Decision:** ship the `system_update` type + the `create()` helper (so it can be triggered from
+a script/seed) but don't fake an auto-generator. Honest about the gap.
+
+**6. Windows file-lock on `prisma generate` (EPERM).** Generation kept failing renaming
+`query_engine-windows.dll.node` — the running `tsx watch` dev server holds the DLL. **Key
+insight:** Prisma writes the **TypeScript types first**, then swaps the engine binary; the types
+*did* update (backend typechecked clean), only the runtime binary was locked. So the fix was just
+"restart the dev server," not a code problem. I didn't kill the user's servers unilaterally.
+
+**7. Migration drift → near data loss.** `prisma migrate dev` reported drift (earlier columns
+like `duration_mins` were added via `db push`, not migrations) and wanted to **reset the database
+(drop all data)**. **Decision:** used `prisma db push --skip-generate` instead — it applies only
+the additive diff (new table + nullable column) directly, non-destructively, and `--skip-generate`
+sidesteps the locked engine. Recognising *why* the two tools behaved differently (history vs
+state) was the important part.
+
+**8. Mockup used a component kit we don't have.** The provided design leaned on shadcn
+`Tabs/Avatar/Card` and its own `<header>`. **Decision:** rebuilt it with the project's own
+`Button/Card/Badge` + a tiny state-driven tab strip, and **dropped the duplicate header** because
+the global `Navbar` already renders on every route. Reproduce the look with the primitives you
+have rather than pulling in a kit for one page.
+
+**9. Route ordering.** `PATCH /read-all` is declared before `PATCH /:id/read` so "read-all"
+isn't swallowed as an `:id`. Small, but the kind of bug that 404s silently.
+
+**10. Unread badge freshness.** Chose **30s polling** of a cheap indexed `count` over wiring
+notifications into the existing Socket.IO layer — far less complexity for a badge that doesn't
+need millisecond freshness. Noted Socket.IO as the upgrade path if real-time is required.
+
+**Interview talking points:**
+- *Event vs derived notifications* — push the ones with a clear write moment; lazily materialize
+  the time-based ones to avoid a scheduler, with per-type dedupe for idempotency.
+- *`db push` vs `migrate dev`* — one syncs schema→DB by **state**, the other by **history**;
+  under drift, only `db push` avoids a destructive reset.
+- *Honest scoping* — notify the only audience the data supports (quiz creators), and don't fake an
+  admin broadcaster; flag both instead of pretending.
+
 ---
+
+## Feature 16 — "Remind me" for upcoming quizzes (opt-in two-stage reminders)
+
+**Requirement:** On the Discover "Upcoming" cards, the **Remind me** button should register the
+user for a quiz they don't own, fire **two** notifications — one shortly **before it starts** and
+one **when it goes live** — and, after clicking, flip to **🔔 Reminder set · Cancel** so it can be
+undone.
+
+### Design
+**New table `QuizReminder`** = the user's *intent* to be reminded: `{ userId, quizId,
+notifiedSoon, notifiedLive }` with `@@unique([userId, quizId])`. The two boolean flags double as
+**per-stage dedupe** — far cleaner than encoding a stage into the notification's `link`.
+
+**Reuses the lazy generator.** No new scheduler: `syncDerived` (from Feature 15) now also walks the
+user's reminders and, using the quiz's `scheduledAt`/`durationMins`:
+- fires **"starts soon"** once when start is `< 60 min` away (sets `notifiedSoon`),
+- fires **"live now"** once while `now ∈ [start, start + duration)` (sets `notifiedLive`).
+
+**Endpoints:** `POST /quizzes/:id/remind` (upsert — idempotent), `DELETE /quizzes/:id/remind`
+(cancel), `GET /quizzes/reminders` (the user's reminded quiz IDs, to render the correct state on
+load).
+
+### Challenges & decisions
+
+**1. Two notifications for one quiz without duplicate spam.** Lazy generation re-runs on every
+fetch. Reusing Feature 15's "dedupe by `type + link`" couldn't distinguish the two stages (same
+quiz, same link). **Decision:** put the dedupe **on the reminder row** via `notifiedSoon` /
+`notifiedLive` flags, set transactionally as each notification is created. Each stage fires
+exactly once, and the design stays readable.
+
+**2. Reminding a non-creator.** Feature 15's `upcoming_quiz` only covered a creator's *own*
+quizzes. A reminder is an explicit opt-in by *any* user for *any* upcoming quiz — hence the
+separate intent table rather than overloading the creator logic.
+
+**3. Idempotent button + correct state after reload.** Optimistic local state alone would lie
+after a refresh (button reverts to "Remind me" even though the DB still holds the reminder).
+**Decision:** `POST` is an **upsert** (double-click is harmless) and the page loads
+`GET /quizzes/reminders` on mount into a `Set<quizId>`, so the **🔔 Reminder set · Cancel** state
+is accurate across reloads — not just optimistic.
+
+**4. Route shadowing.** `GET /quizzes/reminders` had to be declared **before** `GET /:id`, or
+"reminders" would be parsed as a quiz id and 404/throw. Same class of bug as the notifications
+`/read-all` vs `/:id/read` ordering.
+
+**5. Lazy-generation gap (flagged, not hidden).** Because reminders materialize on fetch (bell
+polls every 30s while the app is open), a user who keeps the app closed through the whole
+pre-start hour will miss "starts soon" (only "live now" fires later). Honest trade-off of the
+no-scheduler approach; the upgrade path is a background job or email/push.
+
+**Interview talking point:** Model the **intent** (a reminder row) separately from the **effect**
+(notifications), and dedupe on the intent's own state flags. It keeps "fire exactly once per
+stage" trivial and avoids hacks like stuffing a stage marker into a URL.
+
+---
+
 
 ## Cross-cutting engineering practices
 

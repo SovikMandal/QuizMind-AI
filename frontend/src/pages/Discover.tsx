@@ -3,74 +3,27 @@ import { useNavigate } from "react-router-dom";
 import {
   Sparkles,
   Search,
-  ArrowRight,
   Radio,
   Infinity as InfinityIcon,
   CalendarClock,
-  Zap,
-  Play,
-  Bell,
-  Calendar,
-  Clock,
-  Target,
-  Users,
   Lock,
-  Globe,
   Hash,
   KeyRound,
   LogIn,
   ShieldCheck,
   Wand2,
   Plus,
-  Atom,
-  Landmark,
-  Code2,
-  Microscope,
-  Sigma,
-  FlaskConical,
-  Stethoscope,
   Brain,
 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import toast from "react-hot-toast";
-import { Button, cn } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { Section } from "@/components/Section";
+import { QuizItem } from "@/components/QuizCard";
 
 const card = "rounded-2xl border border-zinc-200 bg-white shadow-sm";
 const inputBase =
   "w-full rounded-lg border border-zinc-200 bg-white text-sm outline-none focus:border-[#2b7fff] focus:ring-2 focus:ring-[#2b7fff]/20";
-
-interface QuizItem {
-  id: string;
-  title: string;
-  subject: string | null;
-  difficulty: string;
-  status: string;
-  quizType: "public" | "private";
-  scheduledAt: string | null;
-  creatorId: string;
-  participants?: number;
-  accuracy?: number;
-  durationMins?: number;
-  _count?: { questions: number };
-}
-
-function subjectIcon(subject: string | null) {
-  const s = (subject ?? "").toLowerCase();
-  if (s.includes("hist")) return Landmark;
-  if (s.includes("math") || s.includes("algebra") || s.includes("calc")) return Sigma;
-  if (s.includes("cod") || s.includes("program") || s.includes("java") || s.includes("python")) return Code2;
-  if (s.includes("chem")) return FlaskConical;
-  if (s.includes("bio") || s.includes("cell")) return Microscope;
-  if (s.includes("medic") || s.includes("health")) return Stethoscope;
-  return Atom;
-}
-
-function endsIn(scheduledAt: string | null, durationMins?: number) {
-  if (!scheduledAt) return "—";
-  const end = new Date(scheduledAt).getTime() + (durationMins ?? 60) * 60000;
-  const m = Math.max(0, Math.round((end - Date.now()) / 60000));
-  return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
-}
 
 export default function Discover() {
   const navigate = useNavigate();
@@ -80,9 +33,11 @@ export default function Discover() {
   const [password, setPassword] = useState("");
   const [privateQuiz, setPrivateQuiz] = useState<QuizItem | null>(null);
   const [modalPwd, setModalPwd] = useState("");
+  const [reminded, setReminded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     api.get("/quizzes?limit=50").then((r) => setQuizzes(r.data.quizzes)).catch(() => {});
+    api.get("/quizzes/reminders").then((r) => setReminded(new Set(r.data.quizIds))).catch(() => {});
   }, []);
 
   const join = async (body: Record<string, unknown>, participants?: number) => {
@@ -117,124 +72,20 @@ export default function Discover() {
     }
   };
 
+  const remind = async (q: QuizItem) => {
+    try {
+      await api.post(`/quizzes/${q.id}/remind`);
+      setReminded((prev) => new Set(prev).add(q.id));
+      toast.success("We'll remind you before it starts and when it goes live");
+    } catch (err) {
+      toast.error(apiError(err, "Could not set reminder"));
+    }
+  };
+
   const filtered = quizzes.filter((q) => q.title.toLowerCase().includes(search.toLowerCase()));
   const live = filtered.filter((q) => q.status === "live");
   const upcoming = filtered.filter((q) => q.status === "scheduled");
   const async = filtered.filter((q) => !["live", "scheduled", "draft"].includes(q.status));
-
-  const QuizCard = ({ q, variant }: { q: QuizItem; variant: "live" | "async" | "upcoming" }) => {
-    const Icon = subjectIcon(q.subject);
-    return (
-      <div className={`flex flex-col gap-4 p-5 ${card}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-zinc-100">
-              <Icon className="size-5 text-[#2b7fff]" />
-            </div>
-            <span
-              className={cn(
-                "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                q.quizType === "private" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
-              )}
-            >
-              {q.quizType === "private" ? <Lock className="size-3" /> : <Globe className="size-3" />}
-              {q.quizType === "private" ? "Private" : "Public"}
-            </span>
-          </div>
-          {variant === "live" && (
-            <span className="flex items-center gap-1 rounded-full bg-[#e7000b]/10 px-2 py-0.5 text-xs text-[#e7000b]">
-              <span className="size-1.5 rounded-full bg-[#e7000b]" /> Live
-            </span>
-          )}
-          {variant === "async" && (
-            <span className="rounded-full border border-zinc-200 px-2 py-0.5 text-xs text-[#71717b]">Open</span>
-          )}
-          {variant === "upcoming" && (
-            <span className="rounded-full bg-[#2b7fff]/10 px-2 py-0.5 text-xs text-[#2b7fff]">Soon</span>
-          )}
-        </div>
-        <div className="flex flex-1 flex-col gap-2">
-          <h3 className="font-semibold">{q.title}</h3>
-          <p className="text-xs text-[#71717b]">{q.subject ?? "General"} · {q._count?.questions ?? 0} questions</p>
-          <div className="flex items-center gap-4 pt-1 text-xs text-[#71717b]">
-            {variant === "upcoming" ? (
-              q.scheduledAt && (
-                <span className="flex items-center gap-1">
-                  <Calendar className="size-3.5" /> {new Date(q.scheduledAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                </span>
-              )
-            ) : (
-              <>
-                <span className="flex items-center gap-1">
-                  <Users className="size-3.5" /> {q.participants ?? 0}
-                </span>
-                {variant === "async" ? (
-                  <span className="flex items-center gap-1">
-                    <Target className="size-3.5" /> {q.accuracy ?? 0}%
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1">
-                    <Clock className="size-3.5" /> Ends in {endsIn(q.scheduledAt, q.durationMins)}
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-        {variant === "live" && (
-          <Button className="w-full gap-2" onClick={() => joinCard(q)}><Zap className="size-4" /> Join now</Button>
-        )}
-        {variant === "async" && (
-          <Button variant="outline" className="w-full gap-2 cursor-pointer" onClick={() => joinCard(q)}><Play className="size-4" /> Take quiz</Button>
-        )}
-        {variant === "upcoming" && (
-          <Button variant="outline" className="w-full gap-2"><Bell className="size-4" /> Remind me</Button>
-        )}
-      </div>
-    );
-  };
-
-  const Section = ({
-    icon,
-    title,
-    badge,
-    items,
-    variant,
-    note,
-  }: {
-    icon: React.ReactNode;
-    title: string;
-    badge: React.ReactNode;
-    items: QuizItem[];
-    variant: "live" | "async" | "upcoming";
-    note?: string;
-  }) => (
-    <section className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {icon}
-          <h2 className="text-lg font-semibold">{title}</h2>
-          {badge}
-        </div>
-        <span
-          className="flex cursor-pointer items-center gap-1 text-sm font-medium text-[#71717b] hover:text-[#2b7fff]"
-          onClick={() => navigate(`/discover/${variant}`)}
-        >
-          View all <ArrowRight className="size-4" />
-        </span>
-      </div>
-      {note && <p className="-mt-2 text-xs text-[#71717b]">{note}</p>}
-      {items.length === 0 ? (
-        <p className="text-sm text-zinc-400">Nothing here right now.</p>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {items.slice(0, 3).map((q) => (
-            <QuizCard key={q.id} q={q} variant={variant} />
-          ))}
-        </div>
-      )}
-    </section>
-  );
 
   return (
     <>
@@ -268,6 +119,9 @@ export default function Discover() {
               }
               badge={<span className="rounded-full bg-[#e7000b]/10 px-2 py-0.5 text-xs text-[#e7000b]">{live.length} active</span>}
               items={live}
+              reminded={reminded}
+              onJoin={joinCard}
+              onRemind={remind}
             />
             <Section
               variant="async"
@@ -276,6 +130,9 @@ export default function Discover() {
               badge={<span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs">Anytime</span>}
               note="Live sessions ended but these quizzes are still open to take on your own time."
               items={async}
+              reminded={reminded}
+              onJoin={joinCard}
+              onRemind={remind}
             />
             <Section
               variant="upcoming"
@@ -283,6 +140,9 @@ export default function Discover() {
               icon={<CalendarClock className="size-5 text-[#2b7fff]" />}
               badge={<span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs">Scheduled</span>}
               items={upcoming}
+              reminded={reminded}
+              onJoin={joinCard}
+              onRemind={remind}
             />
           </div>
 

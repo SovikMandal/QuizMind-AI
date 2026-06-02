@@ -7,6 +7,7 @@ import { toPublicUser } from "../../utils/sanitizeUser";
 import { sendMail } from "../../utils/mailer";
 import { logger } from "../../utils/logger";
 import { razorpay, isRazorpayConfigured, PLANS, PlanId } from "../../config/razorpay";
+import { NotificationService } from "../notification/notification.service";
 
 function ensureConfigured() {
   if (!isRazorpayConfigured || !razorpay) {
@@ -40,9 +41,17 @@ export const PaymentService = {
       .digest("hex");
     if (expected !== signature) throw ApiError.badRequest("Invalid payment signature");
 
+    const tier = PLANS[plan].tier;
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { tier: PLANS[plan].tier },
+      data: { tier, subscriptionEndsAt: new Date(Date.now() + 30 * 86_400_000) },
+    });
+    await NotificationService.create({
+      userId,
+      type: "plan_purchased",
+      title: `You're now on the ${tier} plan 🎉`,
+      body: "Your subscription is active. Enjoy your new benefits!",
+      link: "/profile",
     });
     return toPublicUser(user);
   },
@@ -65,7 +74,17 @@ export const PaymentService = {
     const stored = await redis.get(key);
     if (!stored || stored !== otp) throw ApiError.badRequest("Invalid or expired code");
     await redis.del(key);
-    const user = await prisma.user.update({ where: { id: userId }, data: { tier: "free" } });
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { tier: "free", subscriptionEndsAt: null },
+    });
+    await NotificationService.create({
+      userId,
+      type: "plan_cancelled",
+      title: "Your plan was cancelled",
+      body: "You're back on the Free plan. You can re-subscribe anytime.",
+      link: "/pricing",
+    });
     return toPublicUser(user);
   },
 };

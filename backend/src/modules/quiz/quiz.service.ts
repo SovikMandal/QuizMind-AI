@@ -5,6 +5,7 @@ import { hashPassword } from "../../utils/password";
 import { generateUniqueAccessCode } from "../../utils/generateAccessCode";
 import { stripAnswers, effectiveQuizStatus } from "./quiz.mappers";
 import { CreateQuizInput, UpdateQuizInput, ListQuizQuery } from "./quiz.schemas";
+import { NotificationService } from "../notification/notification.service";
 
 export const TIER_QUIZ_LIMITS = { free: 10, pro: 30, premium: 120 } as const;
 
@@ -25,7 +26,7 @@ export const QuizService = {
     const isPrivate = input.quizType === "private";
     const totalPoints = input.questions.reduce((sum, q) => sum + (q.points ?? 10), 0);
 
-    return prisma.quiz.create({
+    const quiz = await prisma.quiz.create({
       data: {
         creatorId: userId,
         title: input.title,
@@ -57,6 +58,17 @@ export const QuizService = {
       },
       include: { questions: { orderBy: { orderIndex: "asc" } } },
     });
+
+    if (usedThisMonth + 1 >= limit) {
+      await NotificationService.create({
+        userId,
+        type: "quiz_limit_reached",
+        title: "Monthly quiz limit reached",
+        body: `You've used all ${limit} quizzes in your plan this month. Upgrade to create more.`,
+        link: "/pricing",
+      });
+    }
+    return quiz;
   },
 
   async list(query: ListQuizQuery) {
@@ -195,6 +207,25 @@ export const QuizService = {
 
   async remove(id: string) {
     await prisma.quiz.delete({ where: { id } });
+  },
+
+  async addReminder(userId: string, quizId: string) {
+    const quiz = await prisma.quiz.findUnique({ where: { id: quizId }, select: { id: true } });
+    if (!quiz) throw ApiError.notFound("Quiz not found");
+    await prisma.quizReminder.upsert({
+      where: { userId_quizId: { userId, quizId } },
+      create: { userId, quizId },
+      update: {},
+    });
+  },
+
+  async removeReminder(userId: string, quizId: string) {
+    await prisma.quizReminder.deleteMany({ where: { userId, quizId } });
+  },
+
+  async listReminderQuizIds(userId: string) {
+    const rows = await prisma.quizReminder.findMany({ where: { userId }, select: { quizId: true } });
+    return rows.map((r) => r.quizId);
   },
 
   async publish(id: string) {

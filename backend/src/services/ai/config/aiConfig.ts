@@ -1,6 +1,7 @@
 import { AIProvider } from "../AIProvider";
 import { GeminiProvider } from "../providers/GeminiProvider";
 import { AnthropicProvider } from "../providers/AnthropicProvider";
+import { OpenRouterProvider } from "../providers/OpenRouterProvider";
 import { env } from "../../../config/env";
 import { ApiError } from "../../../utils/ApiError";
 import { logger } from "../../../utils/logger";
@@ -22,6 +23,9 @@ export function getAIProvider(): AIProvider {
     case "claude":
       logger.info(`Using Anthropic provider (model: ${env.ANTHROPIC_MODEL})`);
       return new AnthropicProvider(apiKey, env.ANTHROPIC_MODEL);
+    case "openrouter":
+      logger.info(`Using OpenRouter provider (model: ${env.OPENROUTER_MODEL})`);
+      return new OpenRouterProvider(apiKey, env.OPENROUTER_MODEL);
     case "openai":
     case "ollama":
       throw new ApiError(501, `AI provider "${provider}" is not yet implemented`);

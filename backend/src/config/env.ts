@@ -27,6 +27,7 @@ const envSchema = z.object({
     .transform((v) => v === "true"),
   GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
   ANTHROPIC_MODEL: z.string().default("claude-3-5-sonnet-20241022"),
+  OPENROUTER_MODEL: z.string().default("openrouter/owl-alpha"),
 
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),

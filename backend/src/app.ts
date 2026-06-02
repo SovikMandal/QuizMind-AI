@@ -24,6 +24,8 @@ export function createApp() {
     cors({
       origin: env.FRONTEND_URL,
       credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
     })
   );
   app.use(express.json());

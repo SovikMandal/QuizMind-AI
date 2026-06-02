@@ -31,6 +31,7 @@ async function start() {
 }
 
 start().catch((err) => {
-  logger.error(`Failed to start server: ${err instanceof Error ? err.message : err}`);
+  console.error("FULL ERROR:");
+  console.error(err);
   process.exit(1);
 });

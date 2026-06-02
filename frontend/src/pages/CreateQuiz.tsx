@@ -25,6 +25,7 @@ import { api, apiError } from "@/lib/api";
 import toast from "react-hot-toast";
 import type { QuestionInput } from "@/types";
 import { Button, Card, Input, Label, cn } from "@/components/ui";
+import { useAuth } from "@/stores/auth";
 
 const difficultyToQuizLevel = {
   easy: "beginner",
@@ -243,6 +244,8 @@ export default function CreateQuiz() {
   // Step 2 — questions
   const [topicPrompt, setTopicPrompt] = useState("");
   const [count, setCount] = useState(10);
+  const { user } = useAuth();
+  const maxAiQuestions = !user || user.tier === "free" ? 12 : 70;
   const [questions, setQuestions] = useState<QuestionInput[]>([]);
 
   const [generating, setGenerating] = useState(false);
@@ -495,7 +498,8 @@ export default function CreateQuiz() {
               </div>
               <div className="mt-4 flex flex-col gap-2">
                 <Label>Number of questions</Label>
-                <Input type="number" min={1} max={20} className="w-28" value={count} onChange={(e) => setCount(Number(e.target.value))} />
+                <Input type="number" min={1} max={maxAiQuestions} className="w-28" value={count} onChange={(e) => setCount(Math.min(maxAiQuestions, Math.max(1, Number(e.target.value))))} />
+                <p className="text-xs text-[#71717b]">Up to {maxAiQuestions} questions on your {user?.tier ?? "free"} plan.</p>
               </div>
               <Button className="mt-4 w-full gap-2" onClick={generate} disabled={generating || !topicPrompt.trim()}>
                 <Sparkles className="size-4" /> {generating ? "Generating..." : "Generate Questions"}

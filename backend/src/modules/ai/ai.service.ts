@@ -1,26 +1,9 @@
 import { getAIProvider, GeneratedQuestion, QuestionFormat } from "../../services/ai";
 import { GenerateQuestionsInput } from "./ai.schemas";
 import { ApiError } from "../../utils/ApiError";
-import { logger } from "../../utils/logger";
 import { prisma } from "../../config/db";
 
 const AI_QUESTION_LIMITS = { free: 12, pro: 70, premium: 70 } as const;
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-/** Retries an async AI call up to `attempts` times before surfacing a server error. */
-async function withRetry<T>(fn: () => Promise<T>, attempts = 5): Promise<T> {
-  for (let i = 1; i <= attempts; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      logger.warn(`AI generation attempt ${i}/${attempts} failed: ${err instanceof Error ? err.message : err}`);
-      if (i === attempts) break;
-      await sleep(300 * i);
-    }
-  }
-  throw new ApiError(500, "AI question generation failed after multiple attempts. Please try again.");
-}
 
 const OPTION_IDS = ["a", "b", "c", "d", "e", "f"];
 
@@ -75,9 +58,7 @@ export const AiService = {
       throw new ApiError(403, `Your plan allows up to ${max} AI-generated questions per quiz. Upgrade for more.`);
     }
     const provider = (cached ??= getAIProvider());
-    const generated = await withRetry(() =>
-      provider.generateQuestions(input.topic, input.difficulty, input.count, input.questionType)
-    );
+    const generated = await provider.generateQuestions(input.topic, input.difficulty, input.count, input.questionType);
     return generated.map((g) => toAppQuestion(g, input.questionType));
   },
 };

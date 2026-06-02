@@ -2,6 +2,9 @@ import { getAIProvider, GeneratedQuestion, QuestionFormat } from "../../services
 import { GenerateQuestionsInput } from "./ai.schemas";
 import { ApiError } from "../../utils/ApiError";
 import { logger } from "../../utils/logger";
+import { prisma } from "../../config/db";
+
+const AI_QUESTION_LIMITS = { free: 12, pro: 70, premium: 70 } as const;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -65,7 +68,12 @@ function toAppQuestion(g: GeneratedQuestion, format: QuestionFormat): AppQuestio
 let cached: ReturnType<typeof getAIProvider> | undefined;
 
 export const AiService = {
-  async generateQuestions(input: GenerateQuestionsInput): Promise<AppQuestion[]> {
+  async generateQuestions(userId: string, input: GenerateQuestionsInput): Promise<AppQuestion[]> {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { tier: true } });
+    const max = AI_QUESTION_LIMITS[user?.tier ?? "free"];
+    if (input.count > max) {
+      throw new ApiError(403, `Your plan allows up to ${max} AI-generated questions per quiz. Upgrade for more.`);
+    }
     const provider = (cached ??= getAIProvider());
     const generated = await withRetry(() =>
       provider.generateQuestions(input.topic, input.difficulty, input.count, input.questionType)

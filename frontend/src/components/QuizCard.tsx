@@ -31,6 +31,7 @@ export interface QuizItem {
   accuracy?: number;
   durationMins?: number;
   _count?: { questions: number };
+  creator?: { displayName: string | null; username: string; avatarUrl: string | null };
 }
 
 export type QuizVariant = "live" | "async" | "upcoming";
@@ -97,6 +98,18 @@ export function QuizCard({ q, variant, reminded, onJoin, onRemind }: Props) {
       <div className="flex flex-1 flex-col gap-2">
         <h3 className="font-semibold">{q.title}</h3>
         <p className="text-xs text-[#71717b]">{q.subject ?? "General"} · {q._count?.questions ?? 0} questions</p>
+        {q.creator && (
+          <div className="flex items-center gap-1.5 text-xs text-[#71717b]">
+            {q.creator.avatarUrl ? (
+              <img src={q.creator.avatarUrl} alt="" className="size-5 rounded-full object-cover" />
+            ) : (
+              <span className="flex size-5 items-center justify-center rounded-full bg-zinc-200 text-[9px] font-semibold text-zinc-700">
+                {(q.creator.displayName ?? q.creator.username).slice(0, 2).toUpperCase()}
+              </span>
+            )}
+            by {q.creator.displayName ?? q.creator.username}
+          </div>
+        )}
         <div className="flex items-center gap-4 pt-1 text-xs text-[#71717b]">
           {variant === "upcoming" ? (
             q.scheduledAt && (

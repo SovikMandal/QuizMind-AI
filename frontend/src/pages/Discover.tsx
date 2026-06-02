@@ -20,6 +20,7 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/ui";
 import { Section } from "@/components/Section";
 import { QuizItem } from "@/components/QuizCard";
+import { DiscoverSkeleton } from "@/components/DiscoverSkeleton";
 
 const card = "rounded-2xl border border-zinc-200 bg-white shadow-sm";
 const inputBase =
@@ -34,11 +35,14 @@ export default function Discover() {
   const [privateQuiz, setPrivateQuiz] = useState<QuizItem | null>(null);
   const [modalPwd, setModalPwd] = useState("");
   const [reminded, setReminded] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/quizzes?limit=50").then((r) => setQuizzes(r.data.quizzes)).catch(() => {});
+    api.get("/quizzes?limit=50").then((r) => setQuizzes(r.data.quizzes)).catch(() => {}).finally(() => setLoading(false));
     api.get("/quizzes/reminders").then((r) => setReminded(new Set(r.data.quizIds))).catch(() => {});
   }, []);
+
+  if (loading) return <DiscoverSkeleton />;
 
   const join = async (body: Record<string, unknown>, participants?: number) => {
     try {

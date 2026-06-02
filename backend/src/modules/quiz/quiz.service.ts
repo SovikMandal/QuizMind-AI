@@ -84,7 +84,10 @@ export const QuizService = {
         orderBy: { createdAt: "desc" },
         take: query.limit,
         skip: query.offset,
-        include: { _count: { select: { questions: true } } },
+        include: {
+          _count: { select: { questions: true } },
+          creator: { select: { displayName: true, username: true, avatarUrl: true } },
+        },
       }),
       prisma.quiz.count({ where }),
     ]);

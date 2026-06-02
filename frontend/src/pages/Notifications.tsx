@@ -87,7 +87,8 @@ export default function Notifications() {
     if (n.link) navigate(n.link);
   };
 
-  const filtered = items.filter((n) =>
+  const fresh = items.filter((n) => Date.now() - new Date(n.createdAt).getTime() < 5 * 86400000);
+  const filtered = fresh.filter((n) =>
     tab === "all" ? true : tab === "unread" ? !n.read : metaFor(n.type).group === tab
   );
   const groups = ["Today", "Yesterday", "Older"].map((g) => ({

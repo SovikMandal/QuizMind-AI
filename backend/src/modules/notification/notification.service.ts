@@ -14,6 +14,12 @@ const DAY = 86_400_000;
 /** Lazily materializes time-based notifications so we don't need a background scheduler. */
 async function syncDerived(userId: string) {
   const now = new Date();
+
+  // Notifications expire after 5 days — purge from the DB (and thus from every client).
+  await prisma.notification.deleteMany({
+    where: { userId, createdAt: { lt: new Date(now.getTime() - 5 * DAY) } },
+  });
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { tier: true, subscriptionEndsAt: true },

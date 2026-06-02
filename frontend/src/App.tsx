@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import { useAuth } from "@/stores/auth";
 import { Navbar } from "@/components/Navbar";
 import { ProtectedRoute, PublicOnlyRoute } from "@/components/ProtectedRoute";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 const Landing = lazy(() => import("@/pages/Landing"));
 const Login = lazy(() => import("@/pages/Login"));
@@ -41,7 +42,7 @@ export default function App() {
     loadSession();
   }, [loadSession]);
 
-  if (initializing) return <Spinner />;
+  if (initializing) return <LoadingScreen />;
 
   return (
     <BrowserRouter>

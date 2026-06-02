@@ -6,8 +6,22 @@ import { generateUniqueAccessCode } from "../../utils/generateAccessCode";
 import { stripAnswers, effectiveQuizStatus } from "./quiz.mappers";
 import { CreateQuizInput, UpdateQuizInput, ListQuizQuery } from "./quiz.schemas";
 
+export const TIER_QUIZ_LIMITS = { free: 10, pro: 30, premium: 120 } as const;
+
 export const QuizService = {
   async create(userId: string, input: CreateQuizInput) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { tier: true } });
+    const limit = TIER_QUIZ_LIMITS[user?.tier ?? "free"];
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const usedThisMonth = await prisma.quiz.count({
+      where: { creatorId: userId, createdAt: { gte: startOfMonth } },
+    });
+    if (usedThisMonth >= limit) {
+      throw ApiError.forbidden(`Monthly quiz limit reached (${limit}/month for your plan). Upgrade to create more.`);
+    }
+
     const isPrivate = input.quizType === "private";
     const totalPoints = input.questions.reduce((sum, q) => sum + (q.points ?? 10), 0);
 

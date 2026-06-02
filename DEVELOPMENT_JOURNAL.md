@@ -565,6 +565,108 @@ stage reached via the emailed `?token=` link — with a live **strength meter** 
 or external CSS are reliable, so a "logo" often has to be hosted PNG or plain text. I chose text
 to keep it dependency-free.
 
+## Feature 14 — UI polish pass, tiered quiz limits & paginated Discover
+
+A round of front-end refinements plus two substantive changes (real plan limits and
+infinite scroll). Grouped here because they shipped together in one session.
+
+### 14a. Navbar redesign — bell + profile dropdown
+**Requirement:** Match a provided header mockup, keep the existing nav items, remove the
+standalone Logout button, add a notification bell, and turn the profile into a dropdown
+(Profile Settings · Create · Logout).
+
+**Challenge:** The mockup used shadcn `Avatar`/`AvatarImage`/`AvatarFallback` components that
+**don't exist** in this project (we only have a small hand-rolled `ui.tsx`). Pulling in shadcn
+just for an avatar was overkill.
+
+**Approach/Solution:** Built the avatar inline — render `user.avatarUrl` as a plain `<img>`,
+falling back to the user's initials when null. Implemented the dropdown with local `useState`
+and a transparent full-screen overlay (`fixed inset-0`) to close on outside-click — no extra
+dependency. Restyled nav items with lucide icons and the active-item bottom-border treatment.
+
+**Interview talking point:** Don't adopt a component library to copy one widget — reproduce the
+piece you need with the primitives you already have.
+
+### 14b. Centering the nav + spacing
+**Requirement:** Center the nav items; widen the gap between bell and profile.
+
+**Challenge:** With a two-group `justify-between` header, the nav sat left-of-center because the
+logo and actions groups had unequal widths.
+
+**Solution:** Switched to a **three-section flex** (`logo | nav | actions`) with the two side
+sections set to `flex-1`, so the centre nav is truly centred regardless of side widths. Bell↔
+profile gap set to `gap-10` (per request, after stepping up from 4→6→10).
+
+### 14c. Discover card button alignment
+**Requirement:** Make the "Take quiz" button sit at the bottom of each card so buttons line up
+across a row.
+
+**Challenge:** Cards have variable-height metadata, so buttons floated at different heights.
+
+**Solution:** Grid items already stretch to equal row height, so adding `flex-1` to the card's
+middle content section pushes the action button to the bottom — instant alignment, one class.
+
+### 14d. Top-6 per section on Discover
+**Requirement:** Each Discover section (Live/Async/Upcoming) shows only 6; "View all" shows the
+rest. **Solution:** `items.slice(0, 6)` in the section grid — the "View all" link already routed
+to `/discover/:type` (the QuizList page), so no other change was needed.
+
+### 14e. New "Medical" category
+**Requirement:** Add a Medical subject in Create Quiz "and update backend + database."
+
+**Finding (and correction):** No backend/DB change was needed. `subject` is **free-text**
+(`z.string().max(100)` in Zod; `String? @db.VarChar(100)` in Prisma), **not an enum** — any value
+is already accepted and stored. I flagged this rather than inventing a migration.
+
+**Solution:** Added the `<option>` in CreateQuiz and mapped Medical → `Stethoscope` in the
+`subjectIcon` helper on both card pages (Discover + QuizList).
+
+**Interview talking point:** Verify the constraint before "updating the database" — here the
+field was deliberately schemaless, so the right answer was *no* migration.
+
+### 14f. Countdown formats
+**Requirement:** Waiting-room countdown should be `day:hr:min:sec` (was `min:sec`); live cards'
+"Ends in" should be `hr:min:sec`. **Solution:** Derived the extra units from the same remaining-ms
+value. For the waiting room I rendered the four units from an array with a `Fragment` separator,
+keeping the original accented "Sec" box.
+
+### 14g. Real tiered quiz limits (Premium: unlimited → 120/month)
+**Requirement:** Premium should allow 120 quizzes/month instead of "unlimited," across
+frontend + backend + database.
+
+**Challenge / key finding:** The limits (free 10 / pro 30 / premium ∞) were **display-only
+copy** — `QuizService.create` enforced **nothing**, and there's no per-user limit column
+(tier is just an enum). So "update the database" had no target.
+
+**Approach/Solution:**
+- *Frontend:* changed the Pricing feature and the Profile plan (`limit: Infinity → 120`, copy).
+- *Backend:* added `TIER_QUIZ_LIMITS = { free: 10, pro: 30, premium: 120 }` and enforcement in
+  `create` — count the user's quizzes since the start of the month and throw `403` once the cap
+  is hit. This makes the number *real*.
+- *Database:* no migration — limits are config, not stored state.
+
+**Flagged to the user:** because enforcement didn't exist before, it now also enforces free/pro
+(matching the already-advertised numbers); offered to scope it to premium-only if undesired.
+
+### 14h. Infinite scroll on the "View all" list
+**Requirement:** The QuizList page shouldn't load all quizzes at once — load 50, then another
+50 when the user scrolls to the bottom.
+
+**Challenge:** The live/async/upcoming split is **client-side**, derived from each quiz's
+schedule via `effectiveQuizStatus` (depends on `scheduledAt` + `durationMins` + now). That can't
+be expressed as a simple Prisma `where`, so the server can't cleanly paginate *per section*.
+
+**Approach/Solution:** Kept the client-side variant filter, but replaced the one-shot
+`limit=100` fetch with paginated `limit=50&offset=<loaded>` calls that **append**. An
+`IntersectionObserver` watches a bottom sentinel; while it's in view it pulls the next page
+(guarded by a `loadingRef`, stopped using the server's `total`). Because a sparse-variant batch
+might yield few matches, the observer's "in view" state auto-chains `loadMore` until the viewport
+fills or everything's loaded. No backend change — `list` already returned `{ total, limit, offset }`.
+
+**Interview talking point:** When a derived/time-based filter lives on the client, true
+server-side pagination of that filter needs raw SQL; the pragmatic middle ground is paged raw
+fetches + client filter + an observer that keeps pulling until the view is satisfied.
+
 ---
 
 ## Cross-cutting engineering practices

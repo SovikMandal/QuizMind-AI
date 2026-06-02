@@ -34,7 +34,7 @@ type Field = (typeof EDITABLE)[number];
 const plans = {
   free: { label: "Free Plan", price: "₹0", desc: "Up to 10 quizzes with core question types.", limit: 10, features: [] as string[] },
   pro: { label: "Pro Plan", price: "₹250", desc: "Create up to 30 quizzes/month with AI generation.", limit: 30, features: ["AI quiz generation", "Up to 30 quizzes / month", "Priority support"] },
-  premium: { label: "Premium Plan", price: "₹900", desc: "Unlimited quizzes & advanced AI generation.", limit: Infinity, features: ["Advanced AI generation", "Unlimited quizzes / month", "Priority 24/7 support"] },
+  premium: { label: "Premium Plan", price: "₹900", desc: "120 quizzes/month & advanced AI generation.", limit: 120, features: ["Advanced AI generation", "120 quizzes / month", "Priority 24/7 support"] },
 };
 
 const fmtDate = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -146,6 +146,7 @@ export default function Profile() {
   const daysLeft = Math.max(0, Math.ceil((renews.getTime() - now.getTime()) / 86400000));
   const used = stats?.quizzesCreated ?? 0;
   const usagePct = plan.limit === Infinity ? 0 : Math.min(100, Math.round((used / plan.limit) * 100));
+  const usageColor = usagePct > 75 ? "bg-[#e7000b]" : usagePct >= 50 ? "bg-amber-500" : "bg-[#2b7fff]";
 
   const statItems = [
     ["Quizzes Created", stats?.quizzesCreated],
@@ -297,7 +298,7 @@ export default function Profile() {
                 <span className="font-medium">{used} / {plan.limit === Infinity ? "∞" : plan.limit}</span>
               </div>
               <div className="h-2 w-full rounded-full bg-zinc-100">
-                <div className="h-2 rounded-full bg-[#2b7fff]" style={{ width: `${usagePct}%` }} />
+                <div className={cn("h-2 rounded-full", usageColor)} style={{ width: `${usagePct}%` }} />
               </div>
             </div>
 

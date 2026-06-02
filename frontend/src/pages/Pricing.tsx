@@ -56,7 +56,7 @@ const plans = [
     featured: false,
     features: [
       ["Everything in Pro", true],
-      ["Unlimited quizzes/mo", true],
+      ["120 quizzes/mo", true],
       ["Advanced AI & bulk import", true],
       ["Custom branding", true],
       ["Priority 24/7 support", true],

@@ -18,9 +18,9 @@ import { Button, cn } from "./ui";
 
 const NAV_ITEMS: { to: string; label: string; Icon: LucideIcon }[] = [
   { to: "/dashboard", label: "Dashboard", Icon: LayoutGrid },
+  { to: "/quiz/create", label: "Create", Icon: Plus },
   { to: "/discover", label: "Quizzes", Icon: HelpCircle },
   { to: "/results", label: "Results", Icon: BarChart3 },
-  { to: "/quiz/create", label: "Create", Icon: Plus },
   { to: "/pricing", label: "Pricing", Icon: Tag },
 ];
 

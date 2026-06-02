@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ChevronLeft,
@@ -91,10 +91,39 @@ export default function QuizList() {
   const [now, setNow] = useState(Date.now());
   const [privateQuiz, setPrivateQuiz] = useState<QuizItem | null>(null);
   const [modalPwd, setModalPwd] = useState("");
+  const [total, setTotal] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const [atBottom, setAtBottom] = useState(false);
+  const loadingRef = useRef(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const loadMore = useCallback(async () => {
+    if (loadingRef.current || (total !== 0 && quizzes.length >= total)) return;
+    loadingRef.current = true;
+    try {
+      const r = await api.get(`/quizzes?limit=50&offset=${quizzes.length}`);
+      setQuizzes((prev) => [...prev, ...r.data.quizzes]);
+      setTotal(r.data.total);
+      setLoaded(true);
+    } catch {
+      /* ignore */
+    } finally {
+      loadingRef.current = false;
+    }
+  }, [quizzes.length, total]);
+
+  // Observe the bottom sentinel; load the next page of 50 while it stays in view.
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver((e) => setAtBottom(e[0].isIntersecting), { rootMargin: "200px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   useEffect(() => {
-    api.get("/quizzes?limit=100").then((r) => setQuizzes(r.data.quizzes)).catch(() => {});
-  }, []);
+    if (atBottom) loadMore();
+  }, [atBottom, loadMore]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -166,7 +195,7 @@ export default function QuizList() {
         </select>
       </div>
 
-      {filtered.length === 0 ? (
+      {loaded && quizzes.length >= total && filtered.length === 0 ? (
         <p className="rounded-lg border border-dashed border-zinc-300 py-16 text-center text-sm text-zinc-400">Nothing here right now.</p>
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -246,6 +275,11 @@ export default function QuizList() {
             );
           })}
         </div>
+      )}
+
+      <div ref={sentinelRef} className="h-1" />
+      {quizzes.length < total && (
+        <p className="py-6 text-center text-sm text-zinc-400">Loading more…</p>
       )}
 
       {privateQuiz && (

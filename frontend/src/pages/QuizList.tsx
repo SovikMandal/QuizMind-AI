@@ -43,6 +43,7 @@ interface QuizItem {
   participants?: number;
   accuracy?: number;
   _count?: { questions: number };
+  creator?: { displayName: string | null; username: string; avatarUrl: string | null };
 }
 
 type Variant = "live" | "async" | "upcoming";
@@ -224,6 +225,18 @@ export default function QuizList() {
                     <h3 className="text-lg font-semibold">{q.title}</h3>
                     <p className="text-sm text-[#71717b]">{q.subject ?? "General"} · {q._count?.questions ?? 0} questions</p>
                   </div>
+                  {q.creator && (
+                    <div className="flex items-center gap-1.5 text-sm text-[#71717b]">
+                      {q.creator.avatarUrl ? (
+                        <img src={q.creator.avatarUrl} alt="" className="size-5 rounded-full object-cover" />
+                      ) : (
+                        <span className="flex size-5 items-center justify-center rounded-full bg-zinc-200 text-[9px] font-semibold text-zinc-700">
+                          {(q.creator.displayName ?? q.creator.username).slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
+                      by {q.creator.displayName ?? q.creator.username}
+                    </div>
+                  )}
                   <div className="flex items-center gap-4 text-sm">
                     <span className="flex items-center gap-1.5"><Users className="size-4 text-[#71717b]" /> {q.participants ?? 0} {variant === "upcoming" ? "registered" : "joined"}</span>
                     {variant === "upcoming" ? (

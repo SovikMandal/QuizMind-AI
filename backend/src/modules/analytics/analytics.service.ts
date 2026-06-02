@@ -187,6 +187,7 @@ export const AnalyticsService = {
 
     return {
       quiz: {
+        id: session.quizId,
         title: session.quiz.title,
         subject: session.quiz.subject,
         totalPoints: session.quiz.totalPoints,

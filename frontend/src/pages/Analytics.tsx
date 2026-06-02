@@ -29,6 +29,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { api, apiError } from "@/lib/api";
+import toast from "react-hot-toast";
 import { Button } from "@/components/ui";
 
 const card = "rounded-2xl border border-zinc-200 bg-white shadow-sm";
@@ -43,7 +44,7 @@ interface LbEntry {
   status: string;
 }
 interface Analytics {
-  quiz: { title: string; subject: string | null; totalPoints: number; questionCount: number; status: string; createdAt: string };
+  quiz: { id: string; title: string; subject: string | null; totalPoints: number; questionCount: number; status: string; createdAt: string };
   metrics: { totalStudents: number; avgScorePct: number; completionRate: number; avgTimeSecs: number };
   questions: { index: number; questionText: string; accuracy: number }[];
   participation: { label: string; attempts: number }[];
@@ -116,7 +117,15 @@ export default function Analytics() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" className="gap-2"><Download className="size-4" /> Export</Button>
-            <Button className="gap-2"><Share2 className="size-4" /> Share quiz</Button>
+            <Button
+              className="gap-2"
+              onClick={() => {
+                navigator.clipboard?.writeText(`${location.origin}/join/${d.quiz.id}`);
+                toast.success("Quiz link copied");
+              }}
+            >
+              <Share2 className="size-4" /> Share quiz
+            </Button>
           </div>
         </div>
 

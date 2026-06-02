@@ -28,6 +28,7 @@ import {
   Microscope,
   Sigma,
   FlaskConical,
+  Stethoscope,
   Brain,
 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
@@ -60,6 +61,7 @@ function subjectIcon(subject: string | null) {
   if (s.includes("cod") || s.includes("program") || s.includes("java") || s.includes("python")) return Code2;
   if (s.includes("chem")) return FlaskConical;
   if (s.includes("bio") || s.includes("cell")) return Microscope;
+  if (s.includes("medic") || s.includes("health")) return Stethoscope;
   return Atom;
 }
 
@@ -151,7 +153,7 @@ export default function Discover() {
             <span className="rounded-full bg-[#2b7fff]/10 px-2 py-0.5 text-xs text-[#2b7fff]">Soon</span>
           )}
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-1 flex-col gap-2">
           <h3 className="font-semibold">{q.title}</h3>
           <p className="text-xs text-[#71717b]">{q.subject ?? "General"} · {q._count?.questions ?? 0} questions</p>
           <div className="flex items-center gap-4 pt-1 text-xs text-[#71717b]">
@@ -183,7 +185,7 @@ export default function Discover() {
           <Button className="w-full gap-2" onClick={() => joinCard(q)}><Zap className="size-4" /> Join now</Button>
         )}
         {variant === "async" && (
-          <Button variant="outline" className="w-full gap-2" onClick={() => joinCard(q)}><Play className="size-4" /> Take quiz</Button>
+          <Button variant="outline" className="w-full gap-2 cursor-pointer" onClick={() => joinCard(q)}><Play className="size-4" /> Take quiz</Button>
         )}
         {variant === "upcoming" && (
           <Button variant="outline" className="w-full gap-2"><Bell className="size-4" /> Remind me</Button>
@@ -226,7 +228,7 @@ export default function Discover() {
         <p className="text-sm text-zinc-400">Nothing here right now.</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {items.map((q) => (
+          {items.slice(0, 3).map((q) => (
             <QuizCard key={q.id} q={q} variant={variant} />
           ))}
         </div>

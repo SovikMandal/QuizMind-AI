@@ -24,6 +24,7 @@ import {
   Code2,
   Microscope,
   FlaskConical,
+  Stethoscope,
   Atom,
 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
@@ -66,13 +67,17 @@ function subjectIcon(subject: string | null) {
   if (s.includes("cod") || s.includes("program") || s.includes("java") || s.includes("python")) return Code2;
   if (s.includes("chem")) return FlaskConical;
   if (s.includes("bio") || s.includes("cell")) return Microscope;
+  if (s.includes("medic") || s.includes("health")) return Stethoscope;
   return Atom;
 }
 
 const endsClock = (scheduledAt: string | null, durationMins: number | undefined, now: number) => {
   if (!scheduledAt) return "—";
   const r = Math.max(0, new Date(scheduledAt).getTime() + (durationMins ?? 60) * 60000 - now);
-  return `${Math.floor(r / 60000)}:${String(Math.floor((r % 60000) / 1000)).padStart(2, "0")}`;
+  const h = Math.floor(r / 3600000);
+  const m = Math.floor((r % 3600000) / 60000);
+  const s = Math.floor((r % 60000) / 1000);
+  return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 };
 const inputBase = "w-full rounded-lg border border-zinc-200 bg-white text-sm outline-none focus:border-[#2b7fff] focus:ring-2 focus:ring-[#2b7fff]/20";
 
@@ -199,8 +204,8 @@ export default function QuizList() {
                     )}
                   </div>
                   {variant === "live" && (
-                    <div className="flex items-center gap-2 rounded-lg bg-[#e7000b]/10 px-3 py-2 text-sm font-medium text-[#e7000b]">
-                      <Timer className="size-4" /> Ends in: {endsClock(q.scheduledAt, q.durationMins, now)}
+                    <div className="flex items-center justify-between rounded-lg bg-[#e7000b]/10 px-3 py-2 text-sm font-medium text-[#e7000b]">
+                      <div className="flex items-center gap-2"><Timer className="size-4" /> Ends in:</div> <div>{endsClock(q.scheduledAt, q.durationMins, now)}</div>
                     </div>
                   )}
                   {variant === "upcoming" && (

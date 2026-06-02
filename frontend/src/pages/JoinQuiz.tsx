@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { Fragment, FormEvent, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
@@ -180,7 +180,9 @@ export default function JoinQuiz() {
 
   // ── Waiting room (scheduled) ──
   const remaining = info?.scheduledAt ? Math.max(0, new Date(info.scheduledAt).getTime() - now) : 0;
-  const mins = Math.floor(remaining / 60000);
+  const days = Math.floor(remaining / 86400000);
+  const hrs = Math.floor((remaining % 86400000) / 3600000);
+  const mins = Math.floor((remaining % 3600000) / 60000);
   const secs = Math.floor((remaining % 60000) / 1000);
 
   return (
@@ -209,15 +211,20 @@ export default function JoinQuiz() {
         <div className="flex flex-col items-center gap-4 rounded-2xl bg-zinc-100 py-8">
           <p className="text-sm font-medium text-[#71717b]">Quiz starts in</p>
           <div className="flex items-end gap-3">
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex size-20 items-center justify-center rounded-2xl bg-white text-4xl font-bold tabular-nums shadow-sm">{pad(mins)}</div>
-              <span className="text-xs font-medium text-[#71717b]">Min</span>
-            </div>
-            <span className="pb-7 text-3xl font-bold text-[#71717b]">:</span>
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex size-20 items-center justify-center rounded-2xl bg-[#2b7fff] text-4xl font-bold tabular-nums text-blue-50 shadow-sm">{pad(secs)}</div>
-              <span className="text-xs font-medium text-[#71717b]">Sec</span>
-            </div>
+            {[
+              { v: days, label: "Day" },
+              { v: hrs, label: "Hr" },
+              { v: mins, label: "Min" },
+              { v: secs, label: "Sec", accent: true },
+            ].map((u, i) => (
+              <Fragment key={u.label}>
+                {i > 0 && <span className="pb-7 text-3xl font-bold text-[#71717b]">:</span>}
+                <div className="flex flex-col items-center gap-1">
+                  <div className={`flex size-20 items-center justify-center rounded-2xl text-4xl font-bold tabular-nums shadow-sm ${u.accent ? "bg-[#2b7fff] text-blue-50" : "bg-white"}`}>{pad(u.v)}</div>
+                  <span className="text-xs font-medium text-[#71717b]">{u.label}</span>
+                </div>
+              </Fragment>
+            ))}
           </div>
           <p className="text-center text-xs text-[#71717b]">{remaining <= 0 ? "Starting…" : "Preparing your session…"}</p>
         </div>

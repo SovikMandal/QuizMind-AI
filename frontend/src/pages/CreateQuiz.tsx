@@ -342,7 +342,8 @@ export default function CreateQuiz() {
                   <option value="Science">Science</option>
                   <option value="Math">Math</option>
                   <option value="History">History</option>
-                  <option value="Coding">Coding</option>
+                  <option value="Coding">Computer Science</option>
+                  <option value="Medical">Medical</option>
                   <option value="General">General</option>
                   <option value="Literature">Literature</option>
                   <option value="Geography">Geography</option>

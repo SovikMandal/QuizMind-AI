@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { Button, Card, Badge, cn } from "@/components/ui";
+import { DiscoverSkeleton } from "@/components/DiscoverSkeleton";
 
 interface ResultsData {
   quiz: { title: string; subject: string | null; totalPoints: number };
@@ -42,7 +43,7 @@ export default function Results() {
   }, [sessionId]);
 
   if (error) return <main className="mx-auto max-w-xl px-6 py-20 text-center text-red-600">{error}</main>;
-  if (!data) return <main className="px-6 py-20 text-center text-zinc-500">Loading…</main>;
+  if (!data) return <DiscoverSkeleton />;
 
   const total = data.quiz.totalPoints || 1;
   const score = data.personal?.score ?? 0;

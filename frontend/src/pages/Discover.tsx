@@ -20,7 +20,7 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/ui";
 import { Section } from "@/components/Section";
 import { QuizItem } from "@/components/QuizCard";
-import { LoadingScreen } from "@/components/LoadingScreen";
+import { DiscoverSkeleton } from "@/components/DiscoverSkeleton";
 
 const card = "rounded-2xl border border-zinc-200 bg-white shadow-sm";
 const inputBase =
@@ -42,7 +42,7 @@ export default function Discover() {
     api.get("/quizzes/reminders").then((r) => setReminded(new Set(r.data.quizIds))).catch(() => {});
   }, []);
 
-  if (loading) return <LoadingScreen/>;
+  if (loading) return <DiscoverSkeleton/>;
 
   const join = async (body: Record<string, unknown>, participants?: number) => {
     try {

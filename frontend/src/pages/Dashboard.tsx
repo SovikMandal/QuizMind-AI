@@ -29,7 +29,7 @@ import {
 import { api } from "@/lib/api";
 import { useAuth } from "@/stores/auth";
 import { Button } from "@/components/ui";
-import { LoadingScreen } from "@/components/LoadingScreen";
+import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 
 const card = "rounded-2xl border border-zinc-200 bg-white shadow-sm";
 
@@ -62,7 +62,7 @@ export default function Dashboard() {
     api.get("/users/me/history").then((r) => setHistory(r.data.participated)).catch(() => {});
   }, []);
 
-  if (loading) return <LoadingScreen />;
+  if (loading) return <DashboardSkeleton />;
 
   const s = dash?.stats;
   const statCards = [

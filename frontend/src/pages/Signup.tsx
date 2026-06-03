@@ -20,6 +20,7 @@ import { api, apiError, tokenStore } from "@/lib/api";
 import { EmailVerifyModal } from "@/components/EmailVerifyModal";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 const inputBase =
   "h-10 w-full rounded-lg border border-zinc-200 bg-white text-sm outline-none focus:border-[#2b7fff] focus:ring-2 focus:ring-[#2b7fff]/20";
@@ -56,6 +57,9 @@ export default function Signup() {
       setLoading(false);
     }
   };
+
+  // 👇 Show LoadingScreen while the signup request is in-flight
+  if (loading) return <LoadingScreen />;
 
   return (
     <div className="w-full bg-white text-zinc-950">
@@ -138,7 +142,6 @@ export default function Signup() {
               <h2 className="text-2xl font-bold tracking-tight">Create your account</h2>
               <p className="text-sm text-[#71717b]">Join thousands of educators using QuizMind AI</p>
             </div>
-
 
             <form onSubmit={onSubmit} className="flex flex-col gap-3.5">
               <div className="grid grid-cols-2 gap-4">

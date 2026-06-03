@@ -16,6 +16,7 @@ import { useAuth } from "@/stores/auth";
 import { apiError } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 const inputBase =
   "h-10 w-full rounded-lg border border-zinc-200 bg-white text-sm outline-none focus:border-[#2b7fff] focus:ring-2 focus:ring-[#2b7fff]/20";
@@ -41,6 +42,8 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  if (loading) return <LoadingScreen />;
 
   return (
     <div className="w-full bg-white text-zinc-950">
@@ -113,26 +116,46 @@ export default function Login() {
                 <label className="text-sm font-medium">Email Address</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#71717b]" />
-                  <input type="email" className={`${inputBase} pl-9 pr-3`} placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                  <input
+                    type="email"
+                    className={`${inputBase} pl-9 pr-3`}
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium">Password</label>
-                  <Link to="/forgot-password" className="text-xs font-medium text-[#2b7fff]">Forgot password?</Link>
+                  <Link to="/forgot-password" className="text-xs font-medium text-[#2b7fff]">
+                    Forgot password?
+                  </Link>
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#71717b]" />
-                  <input type={showPw ? "text" : "password"} className={`${inputBase} px-9`} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                  <button type="button" onClick={() => setShowPw((s) => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717b]">
+                  <input
+                    type={showPw ? "text" : "password"}
+                    className={`${inputBase} px-9`}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((s) => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717b]"
+                  >
                     {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
                 </div>
               </div>
 
               <Button type="submit" disabled={loading} className="w-full gap-2">
-                <LogIn className="size-4" /> {loading ? "Signing in..." : "Sign In"}
+                <LogIn className="size-4" /> Sign In
               </Button>
 
               <div className="flex items-center gap-3 py-1">

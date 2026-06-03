@@ -29,7 +29,6 @@ import {
 import { api } from "@/lib/api";
 import { useAuth } from "@/stores/auth";
 import { Button } from "@/components/ui";
-import { LoadingScreen } from "@/components/LoadingScreen";
 import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 
 const card = "rounded-2xl border border-zinc-200 bg-white shadow-sm";

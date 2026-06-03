@@ -9,7 +9,7 @@ Write-Host ""
 $ERRORS = 0
 
 # Check Node.js version
-Write-Host "📦 Checking Node.js version..." -ForegroundColor Yellow
+Write-Host "Checking Node.js version..." -ForegroundColor Yellow
 try {
     $nodeVersion = node -v
     $majorVersion = [int]($nodeVersion -replace 'v(\d+)\..*', '$1')

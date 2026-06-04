@@ -11,7 +11,7 @@ export async function sendMail(to: string, subject: string, html: string) {
   }
   try {
     const payload = {
-      sender: { name: "QuizMind AI", email: env.MAIL_FROM },
+      sender: { email: env.MAIL_FROM },
       to: [{ email: to }],
       subject,
       htmlContent: html,

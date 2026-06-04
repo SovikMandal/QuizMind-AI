@@ -13,7 +13,7 @@ async function sendMail(to, subject, html) {
     }
     try {
         const payload = {
-            sender: { name: "QuizMind AI", email: env_1.env.MAIL_FROM },
+            sender: { email: env_1.env.MAIL_FROM },
             to: [{ email: to }],
             subject,
             htmlContent: html,

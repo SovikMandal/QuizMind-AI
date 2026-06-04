@@ -9,6 +9,8 @@ A full-stack TypeScript application that combines live quiz competitions with as
 [![Node.js](https://img.shields.io/badge/Node.js-20+-339933.svg)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
+> 📖 **For detailed technical deep-dive, architecture decisions, and problem-solving approaches, see [DEVELOPMENT_JOURNAL.md](DEVELOPMENT_JOURNAL.md)**
+
 ---
 
 ## ✨ Features
@@ -316,6 +318,7 @@ This app can be deployed **100% FREE** using:
 - [DEPLOYMENT_SUMMARY.md](DEPLOYMENT_SUMMARY.md) - Cost breakdown & architecture
 - [DEPLOYMENT_ARCHITECTURE.md](DEPLOYMENT_ARCHITECTURE.md) - Visual diagrams
 - [DEPLOYMENT_TROUBLESHOOTING.md](DEPLOYMENT_TROUBLESHOOTING.md) - Common issues & fixes
+- [frontend/SPA_ROUTING_FIX.md](frontend/SPA_ROUTING_FIX.md) - **Fix 404 errors on page refresh**
 
 **🔧 Helper Scripts**:
 ```bash

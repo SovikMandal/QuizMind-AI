@@ -5,7 +5,7 @@ import { env, isProd } from "../../config/env";
 import { ApiError } from "../../utils/ApiError";
 import { toPublicUser } from "../../utils/sanitizeUser";
 import { sendMail } from "../../utils/mailer";
-import { paymentSuccessEmailTemplate } from "../../utils/emailTemplates";
+import { paymentSuccessEmailTemplate, subscriptionCancelledEmailTemplate } from "../../utils/emailTemplates";
 import { logger } from "../../utils/logger";
 import { razorpay, isRazorpayConfigured, PLANS, PlanId } from "../../config/razorpay";
 import { NotificationService } from "../notification/notification.service";
@@ -98,6 +98,39 @@ export const PaymentService = {
     const key = `cancelotp:${userId}`;
     const stored = await redis.get(key);
     if (!stored || stored !== otp) throw ApiError.badRequest("Invalid or expired code");
+    await redis.del(key);
+    
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { tier: "free", subscriptionEndsAt: null }
+    });
+    
+    await NotificationService.create({
+      userId,
+      type: "plan_cancelled",
+      title: "Your plan was cancelled",
+      body: "You're back on the Free plan. You can re-subscribe anytime.",
+      link: "/pricing",
+    });
+    
+    // Send cancellation email (non-blocking)
+    const cancellationDate = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    const accessUntil = new Date(Date.now() + 30 * 86_400_000).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    
+    sendMail(
+      user.email,
+      "Subscription Cancelled – QuizMind AI",
+      subscriptionCancelledEmailTemplate(
+        user.displayName ?? user.username,
+        "Pro", // Could be "Pro" or "Premium" based on previous tier
+        cancellationDate,
+        accessUntil,
+        user.email
+      )
+    ).catch(err => logger.error(`Cancellation email failed: ${err.message}`));
+    
+    return toPublicUser(user);
+  },
     await redis.del(key);
     const user = await prisma.user.update({
       where: { id: userId },

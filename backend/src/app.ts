@@ -19,6 +19,11 @@ import notificationRoutes from "./modules/notification/notification.routes";
 export function createApp() {
   const app = express();
 
+  // Trust proxy for rate limiting behind Render/reverse proxy
+  if (isProd) {
+    app.set("trust proxy", 1);
+  }
+
   app.use(helmet());
   app.use(
     cors({

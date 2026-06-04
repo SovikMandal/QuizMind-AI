@@ -22,6 +22,10 @@ const payment_routes_1 = __importDefault(require("./modules/payment/payment.rout
 const notification_routes_1 = __importDefault(require("./modules/notification/notification.routes"));
 function createApp() {
     const app = (0, express_1.default)();
+    // Trust proxy for rate limiting behind Render/reverse proxy
+    if (env_1.isProd) {
+        app.set("trust proxy", 1);
+    }
     app.use((0, helmet_1.default)());
     app.use((0, cors_1.default)({
         origin: env_1.env.FRONTEND_URL,

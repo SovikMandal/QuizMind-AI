@@ -102,7 +102,15 @@ export const PaymentService = {
       throw ApiError.badRequest("Invalid or expired code");
     }
 
-    await redis.del(key);
+    const existingUser = await prisma.user.findUnique({
+      where: {id: userId},
+    })
+
+    if(!existingUser) {
+      throw ApiError.notFound("User not found");
+    }
+
+    const previousTier = existingUser.tier;
 
     const user = await prisma.user.update({
       where: { id: userId },
@@ -111,6 +119,8 @@ export const PaymentService = {
         subscriptionEndsAt: null,
       },
     });
+
+    await redis.del(key);
 
     await NotificationService.create({
       userId,
@@ -140,7 +150,7 @@ export const PaymentService = {
       "Subscription Cancelled – QuizMind AI",
       subscriptionCancelledEmailTemplate(
         user.displayName ?? user.username,
-        "Pro",
+        previousTier.charAt(0).toUpperCase() + previousTier.slice(1),
         cancellationDate,
         accessUntil,
         user.email

@@ -10,18 +10,22 @@ export async function sendMail(to: string, subject: string, html: string) {
     return;
   }
   try {
+    const payload = {
+      sender: { name: "QuizMind AI", email: env.MAIL_FROM },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    };
+    
+    logger.info(`Sending email from: ${env.MAIL_FROM} to: ${to}`);
+    
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
         "api-key": env.SMTP_PASS,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        sender: { name: "QuizMind AI", email: env.MAIL_FROM },
-        to: [{ email: to }],
-        subject,
-        htmlContent: html,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

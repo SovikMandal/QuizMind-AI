@@ -29,8 +29,11 @@ interface PendingReg {
 
 const newCode = () => String(Math.floor(100000 + Math.random() * 900000));
 
-async function emailCode(email: string, code: string, name: string) {
-  await sendMail(email, "Verify your QuizMind email", otpEmailTemplate(name, code));
+function emailCode(email: string, code: string, name: string) {
+  // Fire and forget - don't block the response
+  sendMail(email, "Verify your QuizMind email", otpEmailTemplate(name, code)).catch((err) =>
+    logger.error(`Failed to send verification email: ${err}`)
+  );
   if (!isProd) logger.info(`Email verification code for ${email}: ${code}`);
 }
 
@@ -59,7 +62,7 @@ export const AuthService = {
       code,
     };
     await redis.set(pendingKey(input.email), JSON.stringify(pending), "EX", 15 * 60);
-    await emailCode(input.email, code, pending.displayName);
+    emailCode(input.email, code, pending.displayName); // Don't await
     // devCode is returned only outside production so the flow is testable without email.
     return { email: input.email, devCode: isProd ? undefined : code };
   },
@@ -81,7 +84,9 @@ export const AuthService = {
       },
     });
     await redis.del(pendingKey(email));
-    void sendMail(user.email, "Welcome to QuizMind AI 🎉", welcomeEmailTemplate(user.displayName ?? user.username));
+    sendMail(user.email, "Welcome to QuizMind AI 🎉", welcomeEmailTemplate(user.displayName ?? user.username)).catch(
+      (err) => logger.error(`Failed to send welcome email: ${err}`)
+    );
     const tokens = await issueTokens(user.id);
     return { user: toPublicUser(user), ...tokens };
   },
@@ -135,11 +140,11 @@ export const AuthService = {
     await redis.set(`reset:${token}`, user.id, "EX", 30 * 60);
 
     const link = `${env.FRONTEND_URL}/forgot-password?token=${token}`;
-    await sendMail(
+    sendMail(
       user.email,
       "Reset your QuizMind password",
       forgotPasswordEmailTemplate(user.displayName ?? user.username, link)
-    );
+    ).catch((err) => logger.error(`Failed to send password reset email: ${err}`));
 
     // Returned only outside production as a fallback when email isn't configured.
     return { devToken: isProd || isMailConfigured ? undefined : token };
@@ -160,6 +165,6 @@ export const AuthService = {
     const pending = JSON.parse(raw) as PendingReg;
     pending.code = newCode();
     await redis.set(pendingKey(email), JSON.stringify(pending), "EX", 15 * 60);
-    await emailCode(email, pending.code, pending.displayName);
+    emailCode(email, pending.code, pending.displayName); // Don't await
   },
 };

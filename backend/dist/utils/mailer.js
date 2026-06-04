@@ -14,6 +14,8 @@ const transporter = env_1.env.SMTP_USER && env_1.env.SMTP_PASS
         port: env_1.env.SMTP_PORT,
         secure: env_1.env.SMTP_PORT === 465, // 465 = SSL, 587 = STARTTLS
         auth: { user: env_1.env.SMTP_USER, pass: env_1.env.SMTP_PASS },
+        connectionTimeout: 10000, // 10 seconds
+        greetingTimeout: 5000, // 5 seconds
     })
     : null;
 exports.isMailConfigured = !!transporter;

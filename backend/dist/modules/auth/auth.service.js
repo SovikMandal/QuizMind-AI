@@ -16,8 +16,9 @@ const REFRESH_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const refreshKey = (userId, jti) => `refresh:${userId}:${jti}`;
 const pendingKey = (email) => `pendingreg:${email.toLowerCase()}`;
 const newCode = () => String(Math.floor(100000 + Math.random() * 900000));
-async function emailCode(email, code, name) {
-    await (0, mailer_1.sendMail)(email, "Verify your QuizMind email", (0, emailTemplates_1.otpEmailTemplate)(name, code));
+function emailCode(email, code, name) {
+    // Fire and forget - don't block the response
+    (0, mailer_1.sendMail)(email, "Verify your QuizMind email", (0, emailTemplates_1.otpEmailTemplate)(name, code)).catch((err) => logger_1.logger.error(`Failed to send verification email: ${err}`));
     if (!env_1.isProd)
         logger_1.logger.info(`Email verification code for ${email}: ${code}`);
 }
@@ -45,11 +46,7 @@ exports.AuthService = {
             code,
         };
         await redis_1.redis.set(pendingKey(input.email), JSON.stringify(pending), "EX", 15 * 60);
-        // Do not await the email to avoid blocking the registration request.
-        // If the email fails, it fails silently in the background, but the user is created.
-        emailCode(input.email, code, pending.displayName).catch(err => {
-            logger_1.logger.error(`Background email send failed: ${err.message}`);
-        });
+        emailCode(input.email, code, pending.displayName); // Don't await
         // devCode is returned only outside production so the flow is testable without email.
         return { email: input.email, devCode: env_1.isProd ? undefined : code };
     },
@@ -71,10 +68,7 @@ exports.AuthService = {
             },
         });
         await redis_1.redis.del(pendingKey(email));
-        // Do not await welcome email
-        (0, mailer_1.sendMail)(user.email, "Welcome to QuizMind AI 🎉", (0, emailTemplates_1.welcomeEmailTemplate)(user.displayName ?? user.username)).catch(err => {
-            logger_1.logger.error(`Welcome email failed: ${err.message}`);
-        });
+        (0, mailer_1.sendMail)(user.email, "Welcome to QuizMind AI 🎉", (0, emailTemplates_1.welcomeEmailTemplate)(user.displayName ?? user.username)).catch((err) => logger_1.logger.error(`Failed to send welcome email: ${err}`));
         const tokens = await issueTokens(user.id);
         return { user: (0, sanitizeUser_1.toPublicUser)(user), ...tokens };
     },
@@ -126,10 +120,7 @@ exports.AuthService = {
         const token = (0, crypto_1.randomUUID)();
         await redis_1.redis.set(`reset:${token}`, user.id, "EX", 30 * 60);
         const link = `${env_1.env.FRONTEND_URL}/forgot-password?token=${token}`;
-        // Do not await forgot password email
-        (0, mailer_1.sendMail)(user.email, "Reset your QuizMind password", (0, emailTemplates_1.forgotPasswordEmailTemplate)(user.displayName ?? user.username, link)).catch(err => {
-            logger_1.logger.error(`Forgot password email failed: ${err.message}`);
-        });
+        (0, mailer_1.sendMail)(user.email, "Reset your QuizMind password", (0, emailTemplates_1.forgotPasswordEmailTemplate)(user.displayName ?? user.username, link)).catch((err) => logger_1.logger.error(`Failed to send password reset email: ${err}`));
         // Returned only outside production as a fallback when email isn't configured.
         return { devToken: env_1.isProd || mailer_1.isMailConfigured ? undefined : token };
     },
@@ -149,10 +140,7 @@ exports.AuthService = {
         const pending = JSON.parse(raw);
         pending.code = newCode();
         await redis_1.redis.set(pendingKey(email), JSON.stringify(pending), "EX", 15 * 60);
-        // Do not await resend email
-        emailCode(email, pending.code, pending.displayName).catch(err => {
-            logger_1.logger.error(`Resend email failed: ${err.message}`);
-        });
+        emailCode(email, pending.code, pending.displayName); // Don't await
     },
 };
 //# sourceMappingURL=auth.service.js.map

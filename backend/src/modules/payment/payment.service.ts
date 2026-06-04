@@ -5,6 +5,7 @@ import { env, isProd } from "../../config/env";
 import { ApiError } from "../../utils/ApiError";
 import { toPublicUser } from "../../utils/sanitizeUser";
 import { sendMail } from "../../utils/mailer";
+import { paymentSuccessEmailTemplate } from "../../utils/emailTemplates";
 import { logger } from "../../utils/logger";
 import { razorpay, isRazorpayConfigured, PLANS, PlanId } from "../../config/razorpay";
 import { NotificationService } from "../notification/notification.service";
@@ -46,6 +47,7 @@ export const PaymentService = {
       where: { id: userId },
       data: { tier, subscriptionEndsAt: new Date(Date.now() + 30 * 86_400_000) },
     });
+    
     await NotificationService.create({
       userId,
       type: "plan_purchased",
@@ -53,6 +55,26 @@ export const PaymentService = {
       body: "Your subscription is active. Enjoy your new benefits!",
       link: "/profile",
     });
+
+    // Send payment success email (non-blocking)
+    const amount = `₹${(PLANS[plan].amount / 100).toFixed(2)}`;
+    const date = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    const nextBilling = new Date(Date.now() + 30 * 86_400_000).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    
+    sendMail(
+      user.email,
+      "Payment Successful – QuizMind AI",
+      paymentSuccessEmailTemplate(
+        user.displayName ?? user.username,
+        tier.charAt(0).toUpperCase() + tier.slice(1),
+        amount,
+        orderId,
+        "Card •••• " + paymentId.slice(-4),
+        date,
+        nextBilling
+      )
+    ).catch(err => logger.error(`Payment success email failed: ${err.message}`));
+
     return toPublicUser(user);
   },
 

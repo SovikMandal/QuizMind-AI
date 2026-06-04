@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.otpEmailTemplate = otpEmailTemplate;
 exports.forgotPasswordEmailTemplate = forgotPasswordEmailTemplate;
 exports.welcomeEmailTemplate = welcomeEmailTemplate;
+exports.paymentSuccessEmailTemplate = paymentSuccessEmailTemplate;
 const env_1 = require("../config/env");
 function otpEmailTemplate(name, otp) {
     return `
@@ -152,5 +153,192 @@ function welcomeEmailTemplate(name) {
     </div>
   </div>
   `;
+}
+function paymentSuccessEmailTemplate(name, planName, amount, orderId, paymentMethod, date, nextBilling) {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payment Successful – QuizMind AI</title>
+  <style>
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+    body { margin: 0 !important; padding: 0 !important; background-color: #f4f4f5; }
+    a { color: inherit; text-decoration: none; }
+    @media only screen and (max-width: 640px) {
+      .email-container { width: 100% !important; }
+      .px-mobile { padding-left: 20px !important; padding-right: 20px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Georgia,'Times New Roman',serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f4f4f5;">
+    <tr>
+      <td style="padding:40px 16px;">
+        <table class="email-container" role="presentation" cellpadding="0" cellspacing="0" border="0" width="640" align="center" style="max-width:640px;width:100%;">
+          
+          <tr>
+            <td style="padding:0 0 24px 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="display:inline-table;">
+                      <tr>
+                        <td style="background-color:#2b7fff;border-radius:12px;width:36px;height:36px;text-align:center;vertical-align:middle;">
+                          <span style="color:#eff6ff;font-size:18px;line-height:36px;font-weight:bold;">&#10022;</span>
+                        </td>
+                        <td style="padding-left:8px;vertical-align:middle;">
+                          <span style="font-size:17px;font-weight:700;color:#09090b;letter-spacing:-0.3px;">QuizMind AI</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="text-align:right;vertical-align:middle;">
+                    <span style="font-size:12px;color:#71717b;">Receipt #${orderId}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.07);">
+              
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="background-color:#2b7fff;padding:40px 32px;text-align:center;border-radius:16px 16px 0 0;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
+                      <tr>
+                        <td style="background-color:rgba(239,246,255,0.15);border-radius:14px;width:56px;height:56px;text-align:center;vertical-align:middle;">
+                          <span style="color:#eff6ff;font-size:28px;line-height:56px;">&#10003;</span>
+                        </td>
+                      </tr>
+                    </table>
+                    <div style="height:16px;"></div>
+                    <h1 style="margin:0;font-size:22px;font-weight:700;color:#eff6ff;letter-spacing:-0.3px;">
+                      Payment successful &#127881;
+                    </h1>
+                    <div style="height:6px;"></div>
+                    <p style="margin:0;font-size:14px;color:rgba(239,246,255,0.80);">
+                      Welcome to QuizMind AI ${planName} &mdash; your upgrade is now active.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td class="px-mobile" style="padding:32px;">
+                    <p style="margin:0 0 6px 0;font-size:14px;color:#09090b;">Hi ${name},</p>
+                    <p style="margin:0 0 24px 0;font-size:14px;color:#71717b;line-height:1.6;">
+                      Thanks for subscribing! Your <strong style="color:#09090b;">${planName}</strong> plan is ready to go. You now have access to AI question generation, detailed analytics, and more.
+                    </p>
+
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #e4e4e7;border-radius:12px;margin-bottom:16px;">
+                      <tr>
+                        <td style="padding:20px 24px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                            <tr>
+                              <td style="vertical-align:middle;">
+                                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                                  <tr>
+                                    <td style="background-color:#f4f4f5;border-radius:8px;width:40px;height:40px;text-align:center;vertical-align:middle;">
+                                      <span style="color:#2b7fff;font-size:20px;line-height:40px;">&#9889;</span>
+                                    </td>
+                                    <td style="padding-left:12px;vertical-align:middle;">
+                                      <div style="font-size:14px;font-weight:600;color:#09090b;">${planName} Plan</div>
+                                      <div style="font-size:12px;color:#71717b;">Billed monthly</div>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </td>
+                              <td style="text-align:right;vertical-align:middle;">
+                                <span style="background-color:#2b7fff;color:#eff6ff;font-size:12px;font-weight:600;padding:3px 12px;border-radius:999px;">Active</span>
+                              </td>
+                            </tr>
+                          </table>
+
+                          <div style="height:1px;background-color:#e4e4e7;margin:16px 0;"></div>
+
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                            <tr>
+                              <td style="font-size:14px;font-weight:600;color:#09090b;">Total paid</td>
+                              <td style="font-size:18px;font-weight:700;color:#09090b;text-align:right;">${amount}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f4f4f5;border-radius:12px;margin-bottom:24px;">
+                      <tr>
+                        <td style="padding:20px 24px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                            <tr>
+                              <td style="font-size:14px;color:#71717b;padding-bottom:10px;">Order ID</td>
+                              <td style="font-size:14px;font-weight:500;color:#09090b;text-align:right;padding-bottom:10px;">${orderId}</td>
+                            </tr>
+                            <tr>
+                              <td style="font-size:14px;color:#71717b;padding-bottom:10px;">Payment method</td>
+                              <td style="font-size:14px;font-weight:500;color:#09090b;text-align:right;padding-bottom:10px;">${paymentMethod}</td>
+                            </tr>
+                            <tr>
+                              <td style="font-size:14px;color:#71717b;padding-bottom:10px;">Date</td>
+                              <td style="font-size:14px;font-weight:500;color:#09090b;text-align:right;padding-bottom:10px;">${date}</td>
+                            </tr>
+                            <tr>
+                              <td style="font-size:14px;color:#71717b;">Next billing</td>
+                              <td style="font-size:14px;font-weight:500;color:#09090b;text-align:right;">${nextBilling}</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                      <tr>
+                        <td style="padding-bottom:10px;">
+                          <a href="${env_1.env.FRONTEND_URL}/dashboard" style="display:block;background-color:#2b7fff;color:#eff6ff;font-size:14px;font-weight:600;text-align:center;padding:13px 24px;border-radius:8px;text-decoration:none;">
+                            &#9783; &nbsp; Go to dashboard
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="background-color:#f4f4f5;padding:24px 32px;text-align:center;border-radius:0 0 16px 16px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 8px auto;">
+                      <tr>
+                        <td style="background-color:#2b7fff;border-radius:6px;width:24px;height:24px;text-align:center;vertical-align:middle;">
+                          <span style="color:#eff6ff;font-size:12px;line-height:24px;font-weight:bold;">&#10022;</span>
+                        </td>
+                        <td style="padding-left:6px;vertical-align:middle;">
+                          <span style="font-size:13px;font-weight:600;color:#09090b;">QuizMind AI</span>
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="margin:0 0 10px 0;font-size:12px;color:#71717b;">
+                      Questions? Reach us at <a href="mailto:support@quizmindai.live" style="color:#2b7fff;text-decoration:none;">support@quizmindai.live</a>
+                    </p>
+                    <p style="margin:10px 0 0 0;font-size:11px;color:#71717b;">
+                      &copy; 2026 QuizMind AI &middot; Adaptive learning, powered by AI
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 //# sourceMappingURL=emailTemplates.js.map

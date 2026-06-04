@@ -11,6 +11,7 @@ const env_1 = require("../../config/env");
 const ApiError_1 = require("../../utils/ApiError");
 const sanitizeUser_1 = require("../../utils/sanitizeUser");
 const mailer_1 = require("../../utils/mailer");
+const emailTemplates_1 = require("../../utils/emailTemplates");
 const logger_1 = require("../../utils/logger");
 const razorpay_1 = require("../../config/razorpay");
 const notification_service_1 = require("../notification/notification.service");
@@ -50,6 +51,11 @@ exports.PaymentService = {
             body: "Your subscription is active. Enjoy your new benefits!",
             link: "/profile",
         });
+        // Send payment success email (non-blocking)
+        const amount = `₹${(razorpay_1.PLANS[plan].amount / 100).toFixed(2)}`;
+        const date = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+        const nextBilling = new Date(Date.now() + 30 * 86_400_000).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+        (0, mailer_1.sendMail)(user.email, "Payment Successful – QuizMind AI", (0, emailTemplates_1.paymentSuccessEmailTemplate)(user.displayName ?? user.username, tier.charAt(0).toUpperCase() + tier.slice(1), amount, orderId, "Card •••• " + paymentId.slice(-4), date, nextBilling)).catch(err => logger_1.logger.error(`Payment success email failed: ${err.message}`));
         return (0, sanitizeUser_1.toPublicUser)(user);
     },
     async requestCancelOtp(userId) {

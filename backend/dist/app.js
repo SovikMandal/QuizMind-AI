@@ -19,12 +19,15 @@ const question_routes_1 = __importDefault(require("./modules/quiz/question.route
 const session_routes_1 = __importDefault(require("./modules/session/session.routes"));
 const ai_routes_1 = __importDefault(require("./modules/ai/ai.routes"));
 const payment_routes_1 = __importDefault(require("./modules/payment/payment.routes"));
+const notification_routes_1 = __importDefault(require("./modules/notification/notification.routes"));
 function createApp() {
     const app = (0, express_1.default)();
     app.use((0, helmet_1.default)());
     app.use((0, cors_1.default)({
         origin: env_1.env.FRONTEND_URL,
         credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
     }));
     app.use(express_1.default.json());
     app.use((0, cookie_parser_1.default)());
@@ -42,6 +45,7 @@ function createApp() {
     api.use("/sessions", session_routes_1.default);
     api.use("/ai", ai_routes_1.default);
     api.use("/payments", payment_routes_1.default);
+    api.use("/notifications", notification_routes_1.default);
     app.use("/api/v1", api);
     app.use(errorHandler_1.notFoundHandler);
     app.use(errorHandler_1.errorHandler);

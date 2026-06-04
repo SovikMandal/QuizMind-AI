@@ -5,12 +5,22 @@ const db_1 = require("../../config/db");
 const redis_1 = require("../../config/redis");
 const crypto_1 = require("crypto");
 const env_1 = require("../../config/env");
+const mailer_1 = require("../../utils/mailer");
+const emailTemplates_1 = require("../../utils/emailTemplates");
+const logger_1 = require("../../utils/logger");
 const password_1 = require("../../utils/password");
 const jwt_1 = require("../../utils/jwt");
 const ApiError_1 = require("../../utils/ApiError");
 const sanitizeUser_1 = require("../../utils/sanitizeUser");
 const REFRESH_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const refreshKey = (userId, jti) => `refresh:${userId}:${jti}`;
+const pendingKey = (email) => `pendingreg:${email.toLowerCase()}`;
+const newCode = () => String(Math.floor(100000 + Math.random() * 900000));
+async function emailCode(email, code, name) {
+    await (0, mailer_1.sendMail)(email, "Verify your QuizMind email", (0, emailTemplates_1.otpEmailTemplate)(name, code));
+    if (!env_1.isProd)
+        logger_1.logger.info(`Email verification code for ${email}: ${code}`);
+}
 async function issueTokens(userId) {
     const accessToken = (0, jwt_1.signAccessToken)(userId);
     const { token: refreshToken, jti } = (0, jwt_1.signRefreshToken)(userId);
@@ -19,14 +29,51 @@ async function issueTokens(userId) {
 }
 exports.AuthService = {
     async register(input) {
+        const existing = await db_1.prisma.user.findFirst({
+            where: { OR: [{ email: input.email }, { username: input.username }] },
+        });
+        if (existing) {
+            throw ApiError_1.ApiError.conflict(existing.email === input.email ? "Email already registered" : "Username already taken");
+        }
         const passwordHash = await (0, password_1.hashPassword)(input.password);
+        const code = newCode();
+        const pending = {
+            email: input.email,
+            username: input.username,
+            passwordHash,
+            displayName: input.displayName ?? input.username,
+            code,
+        };
+        await redis_1.redis.set(pendingKey(input.email), JSON.stringify(pending), "EX", 15 * 60);
+        // Do not await the email to avoid blocking the registration request.
+        // If the email fails, it fails silently in the background, but the user is created.
+        emailCode(input.email, code, pending.displayName).catch(err => {
+            logger_1.logger.error(`Background email send failed: ${err.message}`);
+        });
+        // devCode is returned only outside production so the flow is testable without email.
+        return { email: input.email, devCode: env_1.isProd ? undefined : code };
+    },
+    /** Verifies the code, then actually creates the user and logs them in. */
+    async verifyRegistration(email, code) {
+        const raw = await redis_1.redis.get(pendingKey(email));
+        if (!raw)
+            throw ApiError_1.ApiError.badRequest("Registration expired — please sign up again");
+        const pending = JSON.parse(raw);
+        if (pending.code !== code)
+            throw ApiError_1.ApiError.badRequest("Invalid or expired code");
         const user = await db_1.prisma.user.create({
             data: {
-                email: input.email,
-                username: input.username,
-                passwordHash,
-                displayName: input.displayName ?? input.username,
+                email: pending.email,
+                username: pending.username,
+                passwordHash: pending.passwordHash,
+                displayName: pending.displayName,
+                emailVerified: true,
             },
+        });
+        await redis_1.redis.del(pendingKey(email));
+        // Do not await welcome email
+        (0, mailer_1.sendMail)(user.email, "Welcome to QuizMind AI 🎉", (0, emailTemplates_1.welcomeEmailTemplate)(user.displayName ?? user.username)).catch(err => {
+            logger_1.logger.error(`Welcome email failed: ${err.message}`);
         });
         const tokens = await issueTokens(user.id);
         return { user: (0, sanitizeUser_1.toPublicUser)(user), ...tokens };
@@ -77,8 +124,14 @@ exports.AuthService = {
         if (!user)
             return { devToken: undefined }; // don't reveal whether the email exists
         const token = (0, crypto_1.randomUUID)();
-        await redis_1.redis.set(`reset:${token}`, user.id, "EX", 15 * 60);
-        return { devToken: env_1.isProd ? undefined : token };
+        await redis_1.redis.set(`reset:${token}`, user.id, "EX", 30 * 60);
+        const link = `${env_1.env.FRONTEND_URL}/forgot-password?token=${token}`;
+        // Do not await forgot password email
+        (0, mailer_1.sendMail)(user.email, "Reset your QuizMind password", (0, emailTemplates_1.forgotPasswordEmailTemplate)(user.displayName ?? user.username, link)).catch(err => {
+            logger_1.logger.error(`Forgot password email failed: ${err.message}`);
+        });
+        // Returned only outside production as a fallback when email isn't configured.
+        return { devToken: env_1.isProd || mailer_1.isMailConfigured ? undefined : token };
     },
     async resetPassword(token, password) {
         const key = `reset:${token}`;
@@ -88,6 +141,18 @@ exports.AuthService = {
         const passwordHash = await (0, password_1.hashPassword)(password);
         await db_1.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
         await redis_1.redis.del(key);
+    },
+    async resendVerification(email) {
+        const raw = await redis_1.redis.get(pendingKey(email));
+        if (!raw)
+            return;
+        const pending = JSON.parse(raw);
+        pending.code = newCode();
+        await redis_1.redis.set(pendingKey(email), JSON.stringify(pending), "EX", 15 * 60);
+        // Do not await resend email
+        emailCode(email, pending.code, pending.displayName).catch(err => {
+            logger_1.logger.error(`Resend email failed: ${err.message}`);
+        });
     },
 };
 //# sourceMappingURL=auth.service.js.map

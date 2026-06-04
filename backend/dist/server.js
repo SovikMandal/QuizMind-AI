@@ -13,7 +13,7 @@ async function start() {
     const httpServer = (0, http_1.createServer)((0, app_1.createApp)());
     const io = (0, socket_server_1.initSocket)(httpServer);
     httpServer.listen(env_1.env.PORT, () => {
-        logger_1.logger.info(`Backend listening on http://localhost:${env_1.env.PORT} (REST + Socket.IO /quiz)`);
+        logger_1.logger.info(`🚀 Backend listening on http://localhost:${env_1.env.PORT} (REST + Socket.IO /quiz)`);
     });
     const shutdown = async (signal) => {
         logger_1.logger.info(`${signal} received, shutting down...`);
@@ -27,7 +27,8 @@ async function start() {
     process.on("SIGTERM", () => void shutdown("SIGTERM"));
 }
 start().catch((err) => {
-    logger_1.logger.error(`Failed to start server: ${err instanceof Error ? err.message : err}`);
+    console.error("FULL ERROR:");
+    console.error(err);
     process.exit(1);
 });
 //# sourceMappingURL=server.js.map

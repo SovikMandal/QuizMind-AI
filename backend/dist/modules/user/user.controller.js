@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadAvatar = exports.getStats = exports.updateMe = exports.getMe = void 0;
+exports.uploadAvatar = exports.getDashboard = exports.getStats = exports.updateMe = exports.getMe = void 0;
 const user_service_1 = require("./user.service");
 const ApiError_1 = require("../../utils/ApiError");
 const cloudinary_1 = require("../../config/cloudinary");
@@ -19,6 +19,10 @@ const getStats = async (req, res) => {
     res.json({ stats });
 };
 exports.getStats = getStats;
+const getDashboard = async (req, res) => {
+    res.json(await user_service_1.UserService.getDashboard(req.user.id));
+};
+exports.getDashboard = getDashboard;
 const uploadAvatar = async (req, res) => {
     if (!req.file)
         throw ApiError_1.ApiError.badRequest("No image uploaded");

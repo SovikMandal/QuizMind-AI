@@ -6,10 +6,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PaymentService = void 0;
 const crypto_1 = __importDefault(require("crypto"));
 const db_1 = require("../../config/db");
+const redis_1 = require("../../config/redis");
 const env_1 = require("../../config/env");
 const ApiError_1 = require("../../utils/ApiError");
 const sanitizeUser_1 = require("../../utils/sanitizeUser");
+const mailer_1 = require("../../utils/mailer");
+const logger_1 = require("../../utils/logger");
 const razorpay_1 = require("../../config/razorpay");
+const notification_service_1 = require("../notification/notification.service");
 function ensureConfigured() {
     if (!razorpay_1.isRazorpayConfigured || !razorpay_1.razorpay) {
         throw new ApiError_1.ApiError(503, "Payments are not configured (set RAZORPAY_* env vars)");
@@ -34,9 +38,47 @@ exports.PaymentService = {
             .digest("hex");
         if (expected !== signature)
             throw ApiError_1.ApiError.badRequest("Invalid payment signature");
+        const tier = razorpay_1.PLANS[plan].tier;
         const user = await db_1.prisma.user.update({
             where: { id: userId },
-            data: { tier: razorpay_1.PLANS[plan].tier },
+            data: { tier, subscriptionEndsAt: new Date(Date.now() + 30 * 86_400_000) },
+        });
+        await notification_service_1.NotificationService.create({
+            userId,
+            type: "plan_purchased",
+            title: `You're now on the ${tier} plan 🎉`,
+            body: "Your subscription is active. Enjoy your new benefits!",
+            link: "/profile",
+        });
+        return (0, sanitizeUser_1.toPublicUser)(user);
+    },
+    async requestCancelOtp(userId) {
+        const user = await db_1.prisma.user.findUnique({ where: { id: userId } });
+        if (!user)
+            throw ApiError_1.ApiError.notFound("User not found");
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        await redis_1.redis.set(`cancelotp:${userId}`, code, "EX", 600);
+        // Do not await the cancellation email
+        (0, mailer_1.sendMail)(user.email, "Your QuizMind cancellation code", `<p>Your plan cancellation code is <b style="font-size:18px">${code}</b>.</p><p>It expires in 10 minutes. If you didn't request this, ignore this email.</p>`).catch(err => logger_1.logger.error(`Cancel email failed: ${err.message}`));
+        if (!env_1.isProd)
+            logger_1.logger.info(`Cancel OTP for ${user.email}: ${code}`);
+    },
+    async cancel(userId, otp) {
+        const key = `cancelotp:${userId}`;
+        const stored = await redis_1.redis.get(key);
+        if (!stored || stored !== otp)
+            throw ApiError_1.ApiError.badRequest("Invalid or expired code");
+        await redis_1.redis.del(key);
+        const user = await db_1.prisma.user.update({
+            where: { id: userId },
+            data: { tier: "free", subscriptionEndsAt: null },
+        });
+        await notification_service_1.NotificationService.create({
+            userId,
+            type: "plan_cancelled",
+            title: "Your plan was cancelled",
+            body: "You're back on the Free plan. You can re-subscribe anytime.",
+            link: "/pricing",
         });
         return (0, sanitizeUser_1.toPublicUser)(user);
     },

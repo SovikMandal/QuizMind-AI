@@ -42,5 +42,7 @@ const router = (0, express_1.Router)();
 router.use(auth_middleware_1.authenticate);
 router.post("/order", (0, validate_1.validateBody)(payment_schemas_1.createOrderSchema), payment.createOrder);
 router.post("/verify", (0, validate_1.validateBody)(payment_schemas_1.verifyPaymentSchema), payment.verifyPayment);
+router.post("/cancel/request-otp", payment.requestCancelOtp);
+router.post("/cancel", (0, validate_1.validateBody)(payment_schemas_1.cancelSchema), payment.cancel);
 exports.default = router;
 //# sourceMappingURL=payment.routes.js.map

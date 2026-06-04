@@ -6,6 +6,7 @@ const env_1 = require("../config/env");
 const logger_1 = require("../utils/logger");
 const socket_auth_1 = require("./socket.auth");
 const quiz_handler_1 = require("./handlers/quiz.handler");
+const presence_handler_1 = require("./handlers/presence.handler");
 function initSocket(httpServer) {
     const io = new socket_io_1.Server(httpServer, {
         cors: { origin: env_1.env.FRONTEND_URL, credentials: true },
@@ -15,6 +16,7 @@ function initSocket(httpServer) {
     quiz.on("connection", (socket) => {
         logger_1.logger.debug(`Socket connected: ${socket.id} (user ${socket.data.userId})`);
         (0, quiz_handler_1.registerQuizHandlers)(quiz, socket);
+        (0, presence_handler_1.registerPresenceHandlers)(quiz, socket);
     });
     return io;
 }

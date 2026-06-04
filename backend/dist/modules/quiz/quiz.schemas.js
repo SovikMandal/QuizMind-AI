@@ -28,6 +28,7 @@ exports.createQuizSchema = zod_1.z
     password: zod_1.z.string().min(1).optional(),
     allowLateJoin: zod_1.z.boolean().default(false),
     timeLimitSecs: zod_1.z.number().int().positive().default(30),
+    durationMins: zod_1.z.coerce.number().int().positive().default(60),
     scheduledAt: zod_1.z.coerce.date().optional(),
     questions: zod_1.z.array(exports.questionInputSchema).default([]),
 })

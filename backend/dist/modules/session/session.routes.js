@@ -42,6 +42,7 @@ const session_schemas_1 = require("./session.schemas");
 const router = (0, express_1.Router)();
 router.use(auth_middleware_1.authenticate);
 router.post("/join", (0, validate_1.validateBody)(session_schemas_1.joinSchema), session.join);
+router.post("/:id/submit", (0, validate_1.validateBody)(session_schemas_1.submitAttemptSchema), session.submit);
 router.get("/live", session.listLive);
 router.get("/:id/results", analytics.results);
 router.get("/:id/leaderboard", analytics.leaderboard);

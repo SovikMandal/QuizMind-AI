@@ -45,7 +45,7 @@ exports.AnalyticsService = {
         if (mine) {
             const answers = await db_1.prisma.answer.findMany({
                 where: { participantId: mine.id },
-                include: { question: { select: { questionText: true, correctAnswer: true, orderIndex: true } } },
+                include: { question: { select: { questionText: true, correctAnswer: true, orderIndex: true, options: true } } },
                 orderBy: { question: { orderIndex: "asc" } },
             });
             breakdown = answers.map((a) => ({
@@ -54,6 +54,7 @@ exports.AnalyticsService = {
                 correctAnswer: a.question.correctAnswer,
                 isCorrect: a.isCorrect,
                 pointsEarned: a.pointsEarned,
+                options: a.question.options,
             }));
         }
         const total = session.quiz.totalPoints || 1;
@@ -62,7 +63,7 @@ exports.AnalyticsService = {
             personal: mine
                 ? {
                     score: mine.score,
-                    rank: mine.rank,
+                    rank: mine.rank ?? participants.findIndex((p) => p.userId === userId) + 1,
                     accuracyPct: Math.round((mine.score / total) * 100),
                 }
                 : null,
@@ -77,15 +78,22 @@ exports.AnalyticsService = {
     async analytics(sessionId, userId) {
         const session = await loadSession(sessionId);
         if (session.quiz.creatorId !== userId) {
-            throw ApiError_1.ApiError.forbidden("Only the creator can view analytics");
+            const participant = await db_1.prisma.participant.findFirst({ where: { sessionId, userId } });
+            if (!participant)
+                throw ApiError_1.ApiError.forbidden("You did not take this quiz");
         }
-        const participants = await db_1.prisma.participant.findMany({ where: { sessionId } });
+        const participants = await db_1.prisma.participant.findMany({
+            where: { sessionId },
+            orderBy: [{ score: "desc" }, { timeTakenSecs: "asc" }],
+            include: { user: { select: { username: true, displayName: true, avatarUrl: true } } },
+        });
         const answers = await db_1.prisma.answer.findMany({
             where: { participant: { sessionId } },
             include: {
                 question: { select: { id: true, questionText: true, orderIndex: true, topicTag: true } },
             },
         });
+        const questionCount = await db_1.prisma.question.count({ where: { quizId: session.quizId } });
         const totalStudents = participants.length;
         const totalPoints = session.quiz.totalPoints || 1;
         const completed = participants.filter((p) => p.completedAt).length;
@@ -132,24 +140,57 @@ exports.AnalyticsService = {
             topic,
             accuracy: e.total ? Math.round((e.correct / e.total) * 100) : 0,
         }));
-        // Score distribution (10 buckets of % score).
-        const buckets = Array.from({ length: 10 }, (_, i) => ({ range: `${i * 10}-${i * 10 + 10}%`, count: 0 }));
+        // Score distribution (4 buckets).
+        const buckets = [
+            { range: "0-40", count: 0 },
+            { range: "41-60", count: 0 },
+            { range: "61-80", count: 0 },
+            { range: "81-100", count: 0 },
+        ];
         for (const p of participants) {
             const pct = (p.score / totalPoints) * 100;
-            const idx = Math.min(9, Math.floor(pct / 10));
+            const idx = pct <= 40 ? 0 : pct <= 60 ? 1 : pct <= 80 ? 2 : 3;
             buckets[idx].count += 1;
         }
+        // Participation over the last 6 weeks (by join date).
+        const now = new Date();
+        const participation = Array.from({ length: 6 }, (_, i) => ({ label: `W${i + 1}`, attempts: 0 }));
+        for (const p of participants) {
+            const weeksAgo = Math.floor((now.getTime() - new Date(p.joinedAt).getTime()) / (7 * 24 * 3600 * 1000));
+            if (weeksAgo >= 0 && weeksAgo < 6)
+                participation[5 - weeksAgo].attempts += 1;
+        }
+        // Leaderboard with avatar, total time, and status.
+        const leaderboard = participants.map((p, i) => ({
+            rank: p.rank ?? i + 1,
+            participantId: p.id,
+            username: p.user.displayName ?? p.user.username,
+            avatarUrl: p.user.avatarUrl,
+            score: p.score,
+            timeSecs: timeByParticipant.get(p.id) ?? 0,
+            status: p.completedAt ? "completed" : "in_progress",
+        }));
         const hardest = [...questions].sort((a, b) => a.accuracy - b.accuracy)[0];
         const summary = totalStudents === 0
             ? "No participants yet."
             : `Class average ${avgScorePct}% across ${totalStudents} participant(s).` +
                 (hardest ? ` Hardest: "${hardest.questionText}" (${hardest.accuracy}% correct).` : "");
         return {
+            quiz: {
+                id: session.quizId,
+                title: session.quiz.title,
+                subject: session.quiz.subject,
+                totalPoints: session.quiz.totalPoints,
+                questionCount,
+                status: session.quiz.status,
+                createdAt: session.quiz.createdAt,
+            },
             metrics: { totalStudents, avgScorePct, completionRate: totalStudents ? Math.round((completed / totalStudents) * 100) : 0, avgTimeSecs },
             questions,
             topics,
+            participation,
             scoreDistribution: buckets,
-            leaderboard: await this.leaderboard(sessionId),
+            leaderboard,
             summary,
         };
     },
@@ -163,17 +204,29 @@ exports.AnalyticsService = {
             db_1.prisma.participant.findMany({
                 where: { userId },
                 orderBy: { joinedAt: "desc" },
-                include: { session: { include: { quiz: { select: { title: true, subject: true } } } } },
+                include: { session: { include: { quiz: { select: { title: true, subject: true, creatorId: true } } } } },
             }),
         ]);
+        // Rank is computed from score order (stored rank may be null for self-paced attempts).
+        const allParts = await db_1.prisma.participant.findMany({
+            where: { sessionId: { in: participated.map((p) => p.sessionId) } },
+            select: { sessionId: true, score: true },
+        });
+        const scoresBySession = new Map();
+        for (const p of allParts) {
+            const arr = scoresBySession.get(p.sessionId) ?? [];
+            arr.push(p.score);
+            scoresBySession.set(p.sessionId, arr);
+        }
         return {
             created,
             participated: participated.map((p) => ({
                 sessionId: p.sessionId,
                 title: p.session.quiz.title,
                 subject: p.session.quiz.subject,
+                creatorId: p.session.quiz.creatorId,
                 score: p.score,
-                rank: p.rank,
+                rank: p.rank ?? (scoresBySession.get(p.sessionId)?.filter((s) => s > p.score).length ?? 0) + 1,
                 status: p.session.status,
                 joinedAt: p.joinedAt,
             })),

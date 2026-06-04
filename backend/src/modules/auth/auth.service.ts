@@ -59,7 +59,13 @@ export const AuthService = {
       code,
     };
     await redis.set(pendingKey(input.email), JSON.stringify(pending), "EX", 15 * 60);
-    await emailCode(input.email, code, pending.displayName);
+    
+    // Do not await the email to avoid blocking the registration request.
+    // If the email fails, it fails silently in the background, but the user is created.
+    emailCode(input.email, code, pending.displayName).catch(err => {
+      logger.error(`Background email send failed: ${err.message}`);
+    });
+
     // devCode is returned only outside production so the flow is testable without email.
     return { email: input.email, devCode: isProd ? undefined : code };
   },
@@ -81,7 +87,12 @@ export const AuthService = {
       },
     });
     await redis.del(pendingKey(email));
-    void sendMail(user.email, "Welcome to QuizMind AI 🎉", welcomeEmailTemplate(user.displayName ?? user.username));
+
+    // Do not await welcome email
+    sendMail(user.email, "Welcome to QuizMind AI 🎉", welcomeEmailTemplate(user.displayName ?? user.username)).catch(err => {
+      logger.error(`Welcome email failed: ${err.message}`);
+    });
+
     const tokens = await issueTokens(user.id);
     return { user: toPublicUser(user), ...tokens };
   },
@@ -135,11 +146,15 @@ export const AuthService = {
     await redis.set(`reset:${token}`, user.id, "EX", 30 * 60);
 
     const link = `${env.FRONTEND_URL}/forgot-password?token=${token}`;
-    await sendMail(
+    
+    // Do not await forgot password email
+    sendMail(
       user.email,
       "Reset your QuizMind password",
       forgotPasswordEmailTemplate(user.displayName ?? user.username, link)
-    );
+    ).catch(err => {
+      logger.error(`Forgot password email failed: ${err.message}`);
+    });
 
     // Returned only outside production as a fallback when email isn't configured.
     return { devToken: isProd || isMailConfigured ? undefined : token };
@@ -160,6 +175,10 @@ export const AuthService = {
     const pending = JSON.parse(raw) as PendingReg;
     pending.code = newCode();
     await redis.set(pendingKey(email), JSON.stringify(pending), "EX", 15 * 60);
-    await emailCode(email, pending.code, pending.displayName);
+
+    // Do not await resend email
+    emailCode(email, pending.code, pending.displayName).catch(err => {
+      logger.error(`Resend email failed: ${err.message}`);
+    });
   },
 };

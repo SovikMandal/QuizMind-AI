@@ -46,6 +46,7 @@ router.get("/me", controller.getMe);
 router.put("/me", (0, validate_1.validateBody)(user_schemas_1.updateProfileSchema), controller.updateMe);
 router.post("/me/avatar", upload_1.avatarUpload.single("avatar"), controller.uploadAvatar);
 router.get("/me/stats", controller.getStats);
+router.get("/me/dashboard", controller.getDashboard);
 router.get("/me/history", analytics.history);
 exports.default = router;
 //# sourceMappingURL=user.routes.js.map

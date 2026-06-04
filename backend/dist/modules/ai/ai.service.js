@@ -2,6 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AiService = void 0;
 const ai_1 = require("../../services/ai");
+const ApiError_1 = require("../../utils/ApiError");
+const db_1 = require("../../config/db");
+const AI_QUESTION_LIMITS = { free: 12, pro: 70, premium: 70 };
 const OPTION_IDS = ["a", "b", "c", "d", "e", "f"];
 function toAppQuestion(g, format) {
     const base = { questionText: g.content, explanation: g.explanation, difficulty: g.difficulty };
@@ -33,7 +36,12 @@ function toAppQuestion(g, format) {
 }
 let cached;
 exports.AiService = {
-    async generateQuestions(input) {
+    async generateQuestions(userId, input) {
+        const user = await db_1.prisma.user.findUnique({ where: { id: userId }, select: { tier: true } });
+        const max = AI_QUESTION_LIMITS[user?.tier ?? "free"];
+        if (input.count > max) {
+            throw new ApiError_1.ApiError(403, `Your plan allows up to ${max} AI-generated questions per quiz. Upgrade for more.`);
+        }
         const provider = (cached ??= (0, ai_1.getAIProvider)());
         const generated = await provider.generateQuestions(input.topic, input.difficulty, input.count, input.questionType);
         return generated.map((g) => toAppQuestion(g, input.questionType));

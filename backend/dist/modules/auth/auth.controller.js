@@ -1,15 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetPassword = exports.forgotPassword = exports.me = exports.logout = exports.refresh = exports.login = exports.register = void 0;
+exports.resendVerification = exports.verifyEmail = exports.resetPassword = exports.forgotPassword = exports.me = exports.logout = exports.refresh = exports.login = exports.register = void 0;
 const auth_service_1 = require("./auth.service");
 const cookies_1 = require("../../utils/cookies");
 const sanitizeUser_1 = require("../../utils/sanitizeUser");
 const db_1 = require("../../config/db");
 const ApiError_1 = require("../../utils/ApiError");
 const register = async (req, res) => {
-    const { user, accessToken, refreshToken } = await auth_service_1.AuthService.register(req.body);
-    (0, cookies_1.setRefreshCookie)(res, refreshToken);
-    res.status(201).json({ user, accessToken });
+    const result = await auth_service_1.AuthService.register(req.body);
+    res.status(202).json(result);
 };
 exports.register = register;
 const login = async (req, res) => {
@@ -50,4 +49,15 @@ const resetPassword = async (req, res) => {
     res.json({ message: "Password updated. You can now sign in." });
 };
 exports.resetPassword = resetPassword;
+const verifyEmail = async (req, res) => {
+    const { user, accessToken, refreshToken } = await auth_service_1.AuthService.verifyRegistration(req.body.email, req.body.code);
+    (0, cookies_1.setRefreshCookie)(res, refreshToken);
+    res.status(201).json({ user, accessToken });
+};
+exports.verifyEmail = verifyEmail;
+const resendVerification = async (req, res) => {
+    await auth_service_1.AuthService.resendVerification(req.body.email);
+    res.json({ ok: true });
+};
+exports.resendVerification = resendVerification;
 //# sourceMappingURL=auth.controller.js.map

@@ -61,11 +61,14 @@ export const PaymentService = {
     if (!user) throw ApiError.notFound("User not found");
     const code = String(Math.floor(100000 + Math.random() * 900000));
     await redis.set(`cancelotp:${userId}`, code, "EX", 600);
-    await sendMail(
+    
+    // Do not await the cancellation email
+    sendMail(
       user.email,
       "Your QuizMind cancellation code",
       `<p>Your plan cancellation code is <b style="font-size:18px">${code}</b>.</p><p>It expires in 10 minutes. If you didn't request this, ignore this email.</p>`
-    );
+    ).catch(err => logger.error(`Cancel email failed: ${err.message}`));
+    
     if (!isProd) logger.info(`Cancel OTP for ${user.email}: ${code}`);
   },
 

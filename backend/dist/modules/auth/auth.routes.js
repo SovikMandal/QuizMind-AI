@@ -46,6 +46,8 @@ router.post("/refresh", controller.refresh);
 router.post("/logout", controller.logout);
 router.post("/forgot-password", rateLimit_1.authLimiter, (0, validate_1.validateBody)(auth_schemas_1.forgotPasswordSchema), controller.forgotPassword);
 router.post("/reset-password", rateLimit_1.authLimiter, (0, validate_1.validateBody)(auth_schemas_1.resetPasswordSchema), controller.resetPassword);
+router.post("/verify-email", rateLimit_1.authLimiter, (0, validate_1.validateBody)(auth_schemas_1.verifyRegistrationSchema), controller.verifyEmail);
+router.post("/resend-verification", rateLimit_1.authLimiter, (0, validate_1.validateBody)(auth_schemas_1.resendRegistrationSchema), controller.resendVerification);
 router.get("/me", auth_middleware_1.authenticate, controller.me);
 exports.default = router;
 //# sourceMappingURL=auth.routes.js.map

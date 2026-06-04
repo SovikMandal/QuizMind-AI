@@ -59,12 +59,7 @@ export const AuthService = {
       code,
     };
     await redis.set(pendingKey(input.email), JSON.stringify(pending), "EX", 15 * 60);
-    
-    // Crucial: Must 'await' the email inside cloud environments (Render) 
-    // or the server will kill the network packet before it finishes connecting to Brevo.
-    // The strict 5-second timeout inside mailer.ts now protects this from hanging.
     await emailCode(input.email, code, pending.displayName);
-
     // devCode is returned only outside production so the flow is testable without email.
     return { email: input.email, devCode: isProd ? undefined : code };
   },
@@ -86,10 +81,7 @@ export const AuthService = {
       },
     });
     await redis.del(pendingKey(email));
-
-    // Crucial: Must 'await' the email inside cloud environments
-    await sendMail(user.email, "Welcome to QuizMind AI 🎉", welcomeEmailTemplate(user.displayName ?? user.username));
-
+    void sendMail(user.email, "Welcome to QuizMind AI 🎉", welcomeEmailTemplate(user.displayName ?? user.username));
     const tokens = await issueTokens(user.id);
     return { user: toPublicUser(user), ...tokens };
   },
@@ -143,8 +135,6 @@ export const AuthService = {
     await redis.set(`reset:${token}`, user.id, "EX", 30 * 60);
 
     const link = `${env.FRONTEND_URL}/forgot-password?token=${token}`;
-    
-    // Crucial: Must 'await' the email inside cloud environments
     await sendMail(
       user.email,
       "Reset your QuizMind password",
@@ -170,8 +160,6 @@ export const AuthService = {
     const pending = JSON.parse(raw) as PendingReg;
     pending.code = newCode();
     await redis.set(pendingKey(email), JSON.stringify(pending), "EX", 15 * 60);
-
-    // Crucial: Must 'await' the email inside cloud environments
     await emailCode(email, pending.code, pending.displayName);
   },
 };

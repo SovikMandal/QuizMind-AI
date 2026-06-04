@@ -32,11 +32,8 @@ const envSchema = zod_1.z.object({
     CLOUDINARY_API_SECRET: zod_1.z.string().optional(),
     RAZORPAY_KEY_ID: zod_1.z.string().optional(),
     RAZORPAY_KEY_SECRET: zod_1.z.string().optional(),
-    SMTP_HOST: zod_1.z.string().default("smtp-relay.brevo.com"),
-    SMTP_PORT: zod_1.z.coerce.number().default(587),
-    SMTP_USER: zod_1.z.string().optional(),
-    SMTP_PASS: zod_1.z.string().optional(),
-    MAIL_FROM: zod_1.z.string().default("QuizMind AI <no-reply@example.com>"),
+    SMTP_PASS: zod_1.z.string().optional(), // Brevo API key
+    MAIL_FROM: zod_1.z.string().default("noreply@quizmindai.live"),
 });
 const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {

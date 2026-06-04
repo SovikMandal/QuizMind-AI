@@ -36,11 +36,8 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
 
-  SMTP_HOST: z.string().default("smtp-relay.brevo.com"),
-  SMTP_PORT: z.coerce.number().default(587),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
-  MAIL_FROM: z.string().default("QuizMind AI <no-reply@example.com>"),
+  SMTP_PASS: z.string().optional(), // Brevo API key
+  MAIL_FROM: z.string().default("noreply@quizmindai.live"),
 });
 
 const parsed = envSchema.safeParse(process.env);

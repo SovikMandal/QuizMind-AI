@@ -1,30 +1,36 @@
-import nodemailer from "nodemailer";
 import { env } from "../config/env";
 import { logger } from "./logger";
 
-const transporter =
-  env.SMTP_USER && env.SMTP_PASS
-    ? nodemailer.createTransport({
-        host: env.SMTP_HOST,
-        port: env.SMTP_PORT,
-        secure: env.SMTP_PORT === 465, // 465 = SSL, 587 = STARTTLS
-        auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-        connectionTimeout: 10000, // 10 seconds
-        greetingTimeout: 5000, // 5 seconds
-      })
-    : null;
+export const isMailConfigured = !!env.SMTP_PASS;
 
-export const isMailConfigured = !!transporter;
-
-/** Sends an email via SMTP (Brevo). No-ops (with a warning) when SMTP isn't configured. */
+/** Sends an email via Brevo API. No-ops (with a warning) when not configured. */
 export async function sendMail(to: string, subject: string, html: string) {
-  if (!transporter) {
+  if (!env.SMTP_PASS) {
     logger.warn(`Email not configured — skipped "${subject}" to ${to}`);
     return;
   }
   try {
-    await transporter.sendMail({ from: env.MAIL_FROM, to, subject, html });
-  } catch (e) {
-    logger.error(`Email send failed: ${e instanceof Error ? e.message : e}`);
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": env.SMTP_PASS,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sender: { name: "QuizMind AI", email: env.MAIL_FROM },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Brevo API error: ${response.status} ${error}`);
+    }
+
+    logger.info(`Email sent: "${subject}" to ${to}`);
+  } catch (e: any) {
+    logger.error(`Email send failed: ${e?.message || e}`);
   }
 }

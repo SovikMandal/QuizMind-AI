@@ -140,9 +140,20 @@ export default function Profile() {
     return DEFAULT_GOALS.map((d) => byType.get(d.type) ?? d);
   }
 
-  const goalsDirty = goals.some(
-    (g, i) => g.label !== goalsBaseline[i].label || g.target !== goalsBaseline[i].target
-  );
+  /** Auto-generate a goal's display label from its type + target so labels
+   *  stay coherent after a target edit (e.g. target 20 → "Create 20 quizzes"). */
+  function makeLabel(type: GoalType, target: number): string {
+    switch (type) {
+      case "createdQuizzes":
+        return `Create ${target} quizzes`;
+      case "joinedQuizzes":
+        return `Join ${target} quizzes`;
+      case "dayStreak":
+        return `${target}-day streak`;
+    }
+  }
+
+  const goalsDirty = goals.some((g, i) => g.target !== goalsBaseline[i].target);
 
   const updateGoal = (i: number, patch: Partial<UserGoal>) => {
     setGoals((current) => current.map((g, idx) => (idx === i ? { ...g, ...patch } : g)));
@@ -151,14 +162,16 @@ export default function Profile() {
   const saveGoals = async () => {
     // Client-side validation that mirrors the Zod schema on the server.
     for (const g of goals) {
-      if (!g.label.trim()) return toast.error("Goal labels can't be empty");
       if (!Number.isInteger(g.target) || g.target < 1 || g.target > 9999) {
         return toast.error("Goal targets must be between 1 and 9999");
       }
     }
+    // Regenerate labels from targets so the dashboard widget stays coherent
+    // (target changes are reflected in the displayed text automatically).
+    const payload = goals.map((g) => ({ ...g, label: makeLabel(g.type, g.target) }));
     setSavingGoals(true);
     try {
-      const res = await api.put<{ goals: UserGoal[] }>("/users/me/goals", { goals });
+      const res = await api.put<{ goals: UserGoal[] }>("/users/me/goals", { goals: payload });
       const merged = mergeWithDefaults(res.data.goals);
       setGoals(merged);
       setGoalsBaseline(merged);
@@ -352,16 +365,6 @@ export default function Profile() {
                         <span className="text-sm font-medium">{meta.title}</span>
                         <span className="text-xs text-[#71717b]">{meta.helper}</span>
                       </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label className="text-xs text-[#71717b]">Display label</Label>
-                      <Input
-                        className="h-9"
-                        value={g.label}
-                        onChange={(e) => updateGoal(i, { label: e.target.value })}
-                        maxLength={60}
-                        placeholder={DEFAULT_GOALS[i].label}
-                      />
                     </div>
                     <div className="flex flex-col gap-2">
                       <Label className="text-xs text-[#71717b]">Target ({meta.suffix})</Label>

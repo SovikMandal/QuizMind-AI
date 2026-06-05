@@ -121,6 +121,13 @@ export default function QuizList() {
     const obs = new IntersectionObserver((e) => setAtBottom(e[0].isIntersecting), { rootMargin: "200px" });
     obs.observe(el);
     return () => obs.disconnect();
+  }, [loaded]);
+
+  // Kick off the first page directly — the skeleton hides the sentinel,
+  // so the observer can't fire until after we've loaded something.
+  useEffect(() => {
+    loadMore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

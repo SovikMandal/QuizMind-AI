@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button, Card, Badge, cn } from "@/components/ui";
+import { NotificationsSkeleton } from "@/components/NotificationsSkeleton";
 
 interface Notif {
   id: string;
@@ -64,9 +65,10 @@ export default function Notifications() {
   const navigate = useNavigate();
   const [items, setItems] = useState<Notif[]>([]);
   const [tab, setTab] = useState<Tab>("all");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/notifications").then((r) => setItems(r.data.notifications)).catch(() => {});
+    api.get("/notifications").then((r) => setItems(r.data.notifications)).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const unread = items.filter((n) => !n.read).length;
@@ -95,6 +97,8 @@ export default function Notifications() {
     label: g,
     list: filtered.filter((n) => dayGroup(n.createdAt) === g),
   }));
+
+  if (loading) return <NotificationsSkeleton />;
 
   return (
     <main className="mx-auto max-w-5xl px-8 py-12">

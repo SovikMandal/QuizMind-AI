@@ -11,6 +11,7 @@ import { DiscoverSkeleton } from "@/components/DiscoverSkeleton";
 import { QuizListSkeleton } from "@/components/QuizListSkeleton";
 import { MyQuizzesSkeleton } from "@/components/MyQuizzesSkeleton";
 import { TakeQuizSkeleton } from "@/components/TakeQuizSkeleton";
+import { NotificationsSkeleton } from "@/components/NotificationsSkeleton";
 
 const Landing = lazy(() => import("@/pages/Landing"));
 const Login = lazy(() => import("@/pages/Login"));
@@ -77,7 +78,7 @@ export default function App() {
           <Route path="/results/:sessionId" element={protect(<Results />)} />
           <Route path="/analytics/:sessionId" element={protect(<Suspense fallback={<DashboardSkeleton />}><Analytics /></Suspense>)} />
           <Route path="/profile" element={protect(<Profile />)} />
-          <Route path="/notifications" element={protect(<Notifications />)} />
+          <Route path="/notifications" element={protect(<Suspense fallback={<NotificationsSkeleton />}><Notifications /></Suspense>)} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

@@ -84,6 +84,66 @@ export default function Analytics() {
     { icon: Clock, value: fmtTime(d.metrics.avgTimeSecs), label: "Avg. Time Taken" },
   ];
 
+  const exportCsv = () => {
+    // RFC 4180-ish escaping: wrap in quotes, double any internal quotes.
+    const esc = (v: unknown) => {
+      const s = v == null ? "" : String(v);
+      return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const row = (cells: unknown[]) => cells.map(esc).join(",");
+    const lines: string[] = [];
+
+    lines.push(row(["Quiz", d.quiz.title]));
+    lines.push(row(["Subject", d.quiz.subject ?? "General"]));
+    lines.push(row(["Status", d.quiz.status]));
+    lines.push(row(["Questions", d.quiz.questionCount]));
+    lines.push(row(["Total points", d.quiz.totalPoints]));
+    lines.push(row(["Created", new Date(d.quiz.createdAt).toISOString()]));
+    lines.push("");
+
+    lines.push(row(["Metric", "Value"]));
+    lines.push(row(["Students joined", d.metrics.totalStudents]));
+    lines.push(row(["Avg. score (%)", d.metrics.avgScorePct]));
+    lines.push(row(["Completion rate (%)", d.metrics.completionRate]));
+    lines.push(row(["Avg. time", fmtTime(d.metrics.avgTimeSecs)]));
+    lines.push(row(["Pass rate (>=50%)", `${passRate}%`]));
+    lines.push("");
+
+    lines.push(row(["Leaderboard"]));
+    lines.push(row(["Rank", "Student", "Score", "Score (%)", "Time", "Status"]));
+    d.leaderboard.forEach((e) =>
+      lines.push(row([e.rank, e.username, e.score, pct(e.score), fmtTime(e.timeSecs), e.status]))
+    );
+    lines.push("");
+
+    lines.push(row(["Question accuracy"]));
+    lines.push(row(["#", "Question", "Accuracy (%)"]));
+    d.questions.forEach((q) => lines.push(row([q.index, q.questionText, q.accuracy])));
+    lines.push("");
+
+    lines.push(row(["Score distribution"]));
+    lines.push(row(["Range", "Count"]));
+    d.scoreDistribution.forEach((b) => lines.push(row([b.range, b.count])));
+    lines.push("");
+
+    lines.push(row(["Participation"]));
+    lines.push(row(["Period", "Attempts"]));
+    d.participation.forEach((p) => lines.push(row([p.label, p.attempts])));
+
+    // \uFEFF is the UTF-8 BOM — keeps Excel happy with non-ASCII titles.
+    const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const safe = d.quiz.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "quiz";
+    a.href = url;
+    a.download = `${safe}-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success("Analytics exported");
+  };
+
   return (
     <>
       <main className="mx-auto max-w-[1140px] px-6 py-8">
@@ -117,7 +177,7 @@ export default function Analytics() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" className="gap-2"><Download className="size-4" /> Export</Button>
+            <Button variant="outline" className="gap-2" onClick={exportCsv}><Download className="size-4" /> Export</Button>
             <Button
               className="gap-2"
               onClick={() => {

@@ -30,14 +30,18 @@ export function buildReportData(d: AnalyticsData, sessionId: string, passRate: n
     passRate,
     scoreDistribution: d.scoreDistribution,
     hardest,
-    leaderboard: d.leaderboard.map((e) => ({
-      rank: e.rank,
-      participantId: e.participantId,
-      username: e.username,
-      score: e.score,
-      scorePct: pctOf(e.score, d.quiz.totalPoints),
-      timeText: fmtTime(e.timeSecs),
-      status: e.status,
-    })),
+    leaderboard: d.leaderboard
+      // Only completed attempts belong on the printed leaderboard — in-progress
+      // entries have no final score or rank yet.
+      .filter((e) => e.status === "completed")
+      .map((e) => ({
+        rank: e.rank,
+        participantId: e.participantId,
+        username: e.username,
+        score: e.score,
+        scorePct: pctOf(e.score, d.quiz.totalPoints),
+        timeText: fmtTime(e.timeSecs),
+        status: e.status,
+      })),
   };
 }

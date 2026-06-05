@@ -27,6 +27,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import toast from "react-hot-toast";
+import axios from "axios";
 import { api } from "@/lib/api";
 import { useAuth } from "@/stores/auth";
 import { Button } from "@/components/ui";
@@ -36,6 +37,14 @@ import {
   exportNodeToPdf,
   triggerPdfDownload,
 } from "@/lib/exportPdf";
+import {
+  DashboardReport,
+  type DashboardReportData,
+} from "@/components/dashboard/DashboardReport";
+import {
+  buildDashboardReport,
+  type QuizAnalyticsLite,
+} from "@/components/dashboard/buildDashboardReport";
 
 const card = "rounded-2xl border border-zinc-200 bg-white shadow-sm";
 
@@ -51,9 +60,18 @@ interface HistoryItem {
   sessionId: string;
   title: string;
   subject: string | null;
+  creatorId: string;
   score: number;
   status: string;
   joinedAt: string;
+}
+
+interface ExportQuota {
+  used: number;
+  limit: number;
+  remaining: number;
+  resetAt: string;
+  tier: "free" | "pro" | "premium";
 }
 
 export default function Dashboard() {
@@ -63,33 +81,108 @@ export default function Dashboard() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
-  const mainRef = useRef<HTMLElement>(null);
+  const [quota, setQuota] = useState<ExportQuota | null>(null);
+  const [reportData, setReportData] = useState<DashboardReportData | null>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api.get("/users/me/dashboard").then((r) => setDash(r.data)).catch(() => {}).finally(() => setLoading(false));
     api.get("/users/me/history").then((r) => setHistory(r.data.participated)).catch(() => {});
+    // Surface remaining dashboard exports for today. Silent-fail — the
+    // consume call enforces the limit on the server regardless.
+    api
+      .get<ExportQuota>("/users/me/dashboard-exports/quota")
+      .then((r) => setQuota(r.data))
+      .catch(() => {});
   }, []);
 
   const handleExport = async () => {
     if (exporting) return;
-    const node = mainRef.current;
-    if (!node) return;
     setExporting(true);
     const t = toast.loading("Preparing your dashboard PDF…");
     try {
+      // 1. Reserve a tier-limited slot up front so we never render a PDF the
+      //    server would deny. 429 → toast + bail.
+      let next: ExportQuota;
+      try {
+        const res = await api.post<ExportQuota>("/users/me/dashboard-exports/consume");
+        next = res.data;
+      } catch (err) {
+        if (axios.isAxiosError(err) && err.response?.status === 429) {
+          const details = err.response.data?.details as ExportQuota | undefined;
+          if (details) setQuota(details);
+          toast.error(
+            err.response.data?.error ??
+              "Daily dashboard export limit reached. Upgrade your plan for more.",
+            { id: t, duration: 6000 }
+          );
+          return;
+        }
+        toast.error("Could not start export", { id: t });
+        return;
+      }
+
+      // 2. Pull per-quiz analytics for the user's 4 most recent participations
+      //    in parallel. Use allSettled so one rejected fetch (e.g. permission)
+      //    doesn't abort the whole report — that card just shows placeholders.
+      const top = history.slice(0, 4);
+      const analyticsResults = await Promise.allSettled(
+        top.map((h) =>
+          api.get<QuizAnalyticsLite>(`/sessions/${h.sessionId}/analytics`).then((r) => r.data)
+        )
+      );
+
+      // 3. Build the structured report data.
+      const built = buildDashboardReport({
+        preparedFor: user?.displayName ?? user?.username ?? "Quiz host",
+        stats: dash?.stats ?? { created: 0, joined: 0, avgScore: 0, dayStreak: 0 },
+        trends: { created: dash?.trends.created, joined: dash?.trends.joined },
+        recents: top.map((h, i) => ({
+          quiz: {
+            sessionId: h.sessionId,
+            title: h.title,
+            subject: h.subject,
+            joinedAt: h.joinedAt,
+            isOwn: h.creatorId === user?.id,
+          },
+          analytics:
+            analyticsResults[i].status === "fulfilled"
+              ? (analyticsResults[i] as PromiseFulfilledResult<QuizAnalyticsLite>).value
+              : null,
+        })),
+      });
+
+      // 4. Mount the report off-screen and wait two paint frames + 50ms so
+      //    React commits and the layout is fully painted before capture.
+      setReportData(built);
+      await new Promise<void>((r) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => r()))
+      );
+      await new Promise((r) => setTimeout(r, 50));
+
+      const node = reportRef.current;
+      if (!node) {
+        toast.error("Could not render report", { id: t });
+        return;
+      }
+
+      // 5. Capture and download.
       const label = user?.username ?? user?.displayName ?? "dashboard";
       const pdf = await exportNodeToPdf(node, {
         filename: buildExportFilename("QM-Dashboard", label),
       });
       triggerPdfDownload(pdf);
-      toast.success(`Downloaded (${pdf.sizeKb} KB)`, { id: t });
-      // Free the blob URL after the download has been kicked off.
+      setQuota(next);
+      toast.success(`Downloaded (${pdf.sizeKb} KB) · ${next.remaining} left today`, { id: t });
       setTimeout(() => URL.revokeObjectURL(pdf.blobUrl), 5000);
     } catch (err) {
       console.error(err);
       toast.error("Could not export dashboard", { id: t });
     } finally {
       setExporting(false);
+      // Tear down the off-screen mount so we're not keeping the report tree
+      // alive between exports.
+      setReportData(null);
     }
   };
 
@@ -109,7 +202,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <main ref={mainRef} className="mx-auto flex max-w-[1140px] flex-col gap-12 px-6 py-12">
+      <main className="mx-auto flex max-w-[1140px] flex-col gap-12 px-6 py-12">
         {/* Welcome */}
         <section className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
           <div className="flex flex-col gap-3">
@@ -128,9 +221,21 @@ export default function Dashboard() {
               variant="outline"
               className="gap-2 px-5"
               onClick={handleExport}
-              disabled={exporting}
+              disabled={exporting || quota?.remaining === 0}
+              title={
+                quota
+                  ? `${quota.remaining} of ${quota.limit} dashboard exports left today (${quota.tier} plan)`
+                  : undefined
+              }
             >
-              <Download className="size-4" /> {exporting ? "Exporting…" : "Export"}
+              <Download className="size-4" />
+              {exporting
+                ? "Exporting…"
+                : quota?.remaining === 0
+                  ? "Limit reached"
+                  : quota
+                    ? `Export (${quota.remaining} left)`
+                    : "Export"}
             </Button>
             <Button className="gap-2 px-5" onClick={() => navigate("/quiz/create")}>
               <Plus className="size-4" /> Create quiz
@@ -331,6 +436,25 @@ export default function Dashboard() {
           <span className="text-sm text-[#71717b]">© 2025 QuizMind. All rights reserved.</span>
         </div>
       </footer>
+
+      {/* Off-screen report mounted only while exporting. opacity:0 + clip-path
+          keeps it composited (so styles paint reliably) but invisible. */}
+      {reportData && (
+        <div
+          aria-hidden
+          style={{
+            position: "fixed",
+            left: 0,
+            top: 0,
+            opacity: 0,
+            pointerEvents: "none",
+            zIndex: -1,
+            clipPath: "inset(0 100% 100% 0)",
+          }}
+        >
+          <DashboardReport ref={reportRef} data={reportData} />
+        </div>
+      )}
     </>
   );
 }

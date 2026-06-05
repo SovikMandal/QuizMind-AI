@@ -10,7 +10,17 @@ export const PDF_EXPORT_LIMITS: Record<UserTier, number> = {
   premium: 20,
 };
 
+/** Daily dashboard PDF export limit per tier. Same scale as the analytics
+ *  export, but tracked in a separate Redis namespace so the two limits don't
+ *  share a counter. */
+export const DASHBOARD_EXPORT_LIMITS: Record<UserTier, number> = {
+  free: 1,
+  pro: 10,
+  premium: 20,
+};
+
 const NAMESPACE = "pdf-export";
+const DASHBOARD_NAMESPACE = "dashboard-pdf-export";
 
 export interface ExportQuota extends QuotaSnapshot {
   tier: UserTier;
@@ -51,6 +61,27 @@ export const ExportService = {
     if (!allowed) {
       throw ApiError.tooManyRequests(
         `Daily export limit reached (${limit}/day on ${tier} plan). Resets at ${snapshot.resetAt}.`,
+        { ...snapshot, tier }
+      );
+    }
+    return { ...snapshot, tier };
+  },
+
+  /** Read-only: dashboard PDF export quota for the current user. */
+  async peekDashboard(userId: string): Promise<ExportQuota> {
+    const tier = await loadTier(userId);
+    const snapshot = await peekDailyQuota(DASHBOARD_NAMESPACE, userId, DASHBOARD_EXPORT_LIMITS[tier]);
+    return { ...snapshot, tier };
+  },
+
+  /** Increment the dashboard counter, or throw 429 with the current quota. */
+  async consumeDashboard(userId: string): Promise<ExportQuota> {
+    const tier = await loadTier(userId);
+    const limit = DASHBOARD_EXPORT_LIMITS[tier];
+    const { allowed, snapshot } = await consumeDailyQuota(DASHBOARD_NAMESPACE, userId, limit);
+    if (!allowed) {
+      throw ApiError.tooManyRequests(
+        `Daily dashboard export limit reached (${limit}/day on ${tier} plan). Resets at ${snapshot.resetAt}.`,
         { ...snapshot, tier }
       );
     }

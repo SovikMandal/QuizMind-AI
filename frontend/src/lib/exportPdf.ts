@@ -11,9 +11,16 @@ export interface ExportedPdf {
 interface ExportNodeOptions {
   /** Final filename (without extension is fine — `.pdf` is appended if missing). */
   filename: string;
-  /** JPEG quality (0–1). Lower = smaller file. Default 0.85. */
+  /**
+   * JPEG quality (0–1). Default 0.9 — balanced for text-heavy reports.
+   * Lower (0.75–0.85) for photo-heavy content where size matters more.
+   */
   jpegQuality?: number;
-  /** Cap pixel ratio. Default 1.5 — good balance of crispness vs file size. */
+  /**
+   * Render scale. Default 2 — produces ~192 DPI output at Letter size, which
+   * is crisp on screen and acceptable for printing. Going higher than 2
+   * inflates the PDF without a meaningful quality gain at this page size.
+   */
   scale?: number;
 }
 
@@ -70,7 +77,10 @@ export async function exportNodeToPdf(
   await new Promise((r) => requestAnimationFrame(() => r(null)));
   await new Promise((r) => setTimeout(r, 50));
 
-  const scale = Math.min(options.scale ?? 1.5, window.devicePixelRatio || 1.5);
+  // Use the requested render scale directly — output quality should be a
+  // function of the desired DPI, not the user's screen DPR. Capping by DPR
+  // (the previous behaviour) made non-retina users export blurrier PDFs.
+  const scale = options.scale ?? 2;
 
   const captureOptions = {
     scale,
@@ -120,7 +130,7 @@ export async function exportNodeToPdf(
   const sliceCtx = sliceCanvas.getContext("2d");
   if (!sliceCtx) throw new Error("Canvas 2D context unavailable");
 
-  const quality = options.jpegQuality ?? 0.85;
+  const quality = options.jpegQuality ?? 0.9;
   for (let i = 0; i < pageCount; i++) {
     const sy = i * pxPerPage;
     const sliceHeightPx = Math.min(pxPerPage, canvas.height - sy);

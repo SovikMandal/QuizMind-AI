@@ -16,5 +16,7 @@ router.get("/me/stats", controller.getStats);
 router.get("/me/dashboard", controller.getDashboard);
 router.get("/me/history", analytics.history);
 router.get("/me/exports/quota", analytics.exportQuota);
+router.get("/me/dashboard-exports/quota", analytics.dashboardExportQuota);
+router.post("/me/dashboard-exports/consume", analytics.dashboardExportConsume);
 
 export default router;

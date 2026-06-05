@@ -30,6 +30,7 @@ import {
 import { api, apiError } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Button, Card, cn } from "@/components/ui";
+import { QuizListSkeleton } from "@/components/QuizListSkeleton";
 
 interface QuizItem {
   id: string;
@@ -163,6 +164,8 @@ export default function QuizList() {
   const filtered = items.filter(
     (q) => q.title.toLowerCase().includes(search.toLowerCase()) && (cat === "All" || q.subject === cat)
   );
+
+  if (!loaded) return <QuizListSkeleton />;
 
   return (
     <main className="mx-auto max-w-5xl px-8 py-10">

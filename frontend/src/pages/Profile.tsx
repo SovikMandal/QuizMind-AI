@@ -26,7 +26,6 @@ import {
   Flame,
   RotateCcw,
   Trash2,
-  Loader2,
 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -570,7 +569,7 @@ export default function Profile() {
                 <Button variant="outline" className="h-9 border-[#e7000b]/30 text-[#e7000b]" onClick={onLogout}><LogOut className="size-4" /> Log out</Button>
               </div>
 
-              <div className="flex items-center justify-between rounded-lg border border-[#e7000b]/40 bg-[#e7000b]/5 p-4">
+              <div className="flex items-center justify-between rounded-lg border border-[#e7000b]/30 bg-[#e7000b]/5 p-4">
                 <div className="flex items-center gap-3">
                   <div className="flex size-9 items-center justify-center rounded-lg bg-[#e7000b]/10">
                     <Trash2 className="size-4 text-[#e7000b]" />
@@ -585,19 +584,11 @@ export default function Profile() {
                 </div>
                 <Button
                   variant="outline"
-                  className="h-9 border-[#e7000b]/40 bg-white text-[#e7000b] hover:bg-[#e7000b]/10"
+                  className="h-9 border-[#e7000b]/30 text-[#e7000b]"
                   onClick={() => setDeleteStep("confirm")}
                   disabled={deleteStep !== null}
                 >
-                  {deleteStep === "deleting" ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" /> Deleting…
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="size-4" /> Delete account
-                    </>
-                  )}
+                  <Trash2 className="size-4" /> Delete
                 </Button>
               </div>
             </div>
@@ -692,15 +683,7 @@ export default function Profile() {
                   disabled={deleteStep === "deleting"}
                   className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#e7000b] py-2 text-sm font-medium text-white disabled:opacity-70"
                 >
-                  {deleteStep === "deleting" ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" /> Deleting…
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="size-4" /> Yes, delete my account
-                    </>
-                  )}
+                  <Trash2 className="size-4" /> Yes, delete my account
                 </button>
               </div>
             </div>

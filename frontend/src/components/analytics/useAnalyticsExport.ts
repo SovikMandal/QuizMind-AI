@@ -71,29 +71,72 @@ export function useAnalyticsExport({ sessionId, quizTitle }: Options) {
         return;
       }
 
+      // Wait for web fonts + one paint frame so the off-screen node has its
+      // computed styles and lucide SVG icons fully rendered before capture.
+      // Without this the rasterized PDF can look unstyled.
+      if (document.fonts?.ready) {
+        try {
+          await document.fonts.ready;
+        } catch {
+          /* ignore */
+        }
+      }
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+      // Cap pixel ratio: scale 2 on a 4K screen produced 4000+px wide canvases
+      // and bloated the PDF to ~18MB. 1.5 keeps text crisp at Letter size.
+      const scale = Math.min(1.5, window.devicePixelRatio || 1.5);
+
       const canvas = await html2canvas(node, {
-        scale: 2,
+        scale,
         backgroundColor: "#ffffff",
         useCORS: true,
         logging: false,
+        // Pin the layout to the report's intrinsic width so off-screen
+        // positioning can't truncate the capture.
+        width: node.offsetWidth,
+        height: node.offsetHeight,
+        windowWidth: node.offsetWidth,
+        windowHeight: node.offsetHeight,
       });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
+
+      // `compress: true` enables jsPDF's deflate stream compression on
+      // embedded images and metadata — drops file size noticeably.
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: "letter",
+        compress: true,
+      });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      // Pixels of the source canvas that map to one PDF page.
+      const pxPerPage = Math.floor((pageHeight * canvas.width) / pageWidth);
+      const pageCount = Math.max(1, Math.ceil(canvas.height / pxPerPage));
 
-      // Slice the tall image across multiple PDF pages.
-      let remaining = imgHeight;
-      let position = 0;
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      remaining -= pageHeight;
-      while (remaining > 0) {
-        position -= pageHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        remaining -= pageHeight;
+      // Slice the source canvas into per-page sub-canvases and embed each
+      // as its own JPEG. The previous version embedded the *entire* image
+      // on every page (just shifted), which multiplied size by page count.
+      const sliceCanvas = document.createElement("canvas");
+      const sliceCtx = sliceCanvas.getContext("2d");
+      if (!sliceCtx) throw new Error("Canvas 2D context unavailable");
+
+      for (let i = 0; i < pageCount; i++) {
+        const sy = i * pxPerPage;
+        const sliceHeightPx = Math.min(pxPerPage, canvas.height - sy);
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sliceHeightPx;
+        // White background guards against transparent regions becoming black
+        // when the canvas is encoded as JPEG.
+        sliceCtx.fillStyle = "#ffffff";
+        sliceCtx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+        sliceCtx.drawImage(canvas, 0, sy, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+
+        const sliceData = sliceCanvas.toDataURL("image/jpeg", 0.85);
+        const drawWidth = pageWidth;
+        const drawHeight = (sliceHeightPx * pageWidth) / canvas.width;
+        if (i > 0) pdf.addPage();
+        pdf.addImage(sliceData, "JPEG", 0, 0, drawWidth, drawHeight, undefined, "FAST");
       }
 
       const safe = quizTitle.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "quiz";

@@ -62,8 +62,6 @@ const accColor = (a: number) => (a < 40 ? "#e7000b" : a < 60 ? "#ca8a04" : "#16a
  */
 export const AnalyticsReport = forwardRef<HTMLDivElement, { data: ReportData }>(
   function AnalyticsReport({ data }, ref) {
-    const distMax = Math.max(1, ...data.scoreDistribution.map((b) => b.count));
-
     return (
       <div ref={ref} className="bg-white text-zinc-950" style={{ width: 816 }}>
         <div className="overflow-hidden bg-white">
@@ -153,25 +151,73 @@ export const AnalyticsReport = forwardRef<HTMLDivElement, { data: ReportData }>(
                   Score Distribution
                 </h2>
                 <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4">
-                  <div className="flex h-32 items-end gap-3">
-                    {data.scoreDistribution.length === 0 ? (
-                      <span className="m-auto text-xs text-zinc-400">No data</span>
-                    ) : (
-                      data.scoreDistribution.map((b, i) => {
-                        const opacity = 0.3 + (i / Math.max(1, data.scoreDistribution.length - 1)) * 0.7;
-                        const h = Math.max(8, (b.count / distMax) * 100);
-                        return (
-                          <div key={b.range} className="flex flex-1 flex-col items-center justify-end gap-1">
-                            <div
-                              className="w-full rounded-t-sm"
-                              style={{ height: `${h}%`, background: `rgba(43,127,255,${opacity})` }}
-                            />
-                            <span className="text-[10px] text-[#71717b]">{b.range}</span>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
+                  {(() => {
+                    // Render the bar chart as inline SVG. Vector primitives are
+                    // rendered pixel-perfect by both html2canvas modes and
+                    // jsPDF's image embed — none of the percent-height
+                    // ambiguity that broke the previous div-based layout.
+                    const chartW = 320;
+                    const chartH = 128;
+                    const padX = 8;
+                    const padTop = 16; // room for count labels
+                    const padBottom = 18; // room for x-axis labels
+                    const innerH = chartH - padTop - padBottom;
+                    const buckets = data.scoreDistribution;
+                    const totalCount = buckets.reduce((s, b) => s + b.count, 0);
+                    const max = Math.max(1, ...buckets.map((b) => b.count));
+                    const slotW = (chartW - padX * 2) / Math.max(1, buckets.length);
+                    const barW = Math.min(48, slotW * 0.6);
+                    return (
+                      <svg
+                        width={chartW}
+                        height={chartH}
+                        viewBox={`0 0 ${chartW} ${chartH}`}
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        {buckets.map((b, i) => {
+                          // Always show a baseline tick so the chart structure
+                          // is visible even when every bucket is 0.
+                          const ratio = b.count / max;
+                          const h = totalCount === 0 ? 4 : Math.max(4, ratio * innerH);
+                          const x = padX + slotW * i + (slotW - barW) / 2;
+                          const y = padTop + innerH - h;
+                          const opacity = 0.35 + (i / Math.max(1, buckets.length - 1)) * 0.65;
+                          return (
+                            <g key={b.range}>
+                              <rect
+                                x={x}
+                                y={y}
+                                width={barW}
+                                height={h}
+                                rx={3}
+                                fill="#2b7fff"
+                                fillOpacity={opacity}
+                              />
+                              <text
+                                x={x + barW / 2}
+                                y={y - 4}
+                                textAnchor="middle"
+                                fontSize={10}
+                                fontWeight={600}
+                                fill="#18181b"
+                              >
+                                {b.count}
+                              </text>
+                              <text
+                                x={padX + slotW * i + slotW / 2}
+                                y={chartH - 4}
+                                textAnchor="middle"
+                                fontSize={10}
+                                fill="#71717b"
+                              >
+                                {b.range}
+                              </text>
+                            </g>
+                          );
+                        })}
+                      </svg>
+                    );
+                  })()}
                   <div className="flex items-center justify-between rounded-lg bg-zinc-100 px-3 py-2">
                     <span className="text-sm leading-5 text-[#71717b]">Pass rate</span>
                     <span className="text-sm font-bold leading-5 text-[#2b7fff]">{data.passRate}%</span>
@@ -184,24 +230,61 @@ export const AnalyticsReport = forwardRef<HTMLDivElement, { data: ReportData }>(
                   Hardest Questions
                 </h2>
                 <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 p-4">
-                  {data.hardest.length === 0 && (
-                    <p className="text-sm text-zinc-400">No data yet</p>
-                  )}
-                  {data.hardest.map((q) => (
-                    <div key={q.index} className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between text-sm leading-5">
-                        <span className="truncate">
-                          Q{q.index} · {q.questionText}
-                        </span>
-                        <span className="font-semibold" style={{ color: accColor(q.accuracy) }}>
-                          {q.accuracy}%
-                        </span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100">
-                        <div className="h-full bg-[#2b7fff]" style={{ width: `${q.accuracy}%` }} />
-                      </div>
+                  {data.hardest.length === 0 ? (
+                    <div className="flex flex-col gap-1">
+                      <p className="text-sm font-medium text-zinc-700">No attempts yet</p>
+                      <p className="text-xs text-[#71717b]">
+                        Question difficulty will appear here once students start
+                        submitting answers.
+                      </p>
                     </div>
-                  ))}
+                  ) : (
+                    data.hardest.map((q) => {
+                      // Render the accuracy bar as SVG too — keeps the geometry
+                      // exact in the captured canvas regardless of the host
+                      // renderer's percent-width handling.
+                      const trackW = 320;
+                      const trackH = 6;
+                      const fillW = Math.max(2, Math.min(100, q.accuracy) / 100 * trackW);
+                      const color = accColor(q.accuracy);
+                      return (
+                        <div key={q.index} className="flex flex-col gap-2">
+                          <div className="flex items-center justify-between gap-3 text-sm leading-5">
+                            <span className="min-w-0 flex-1 truncate">
+                              Q{q.index} · {q.questionText}
+                            </span>
+                            <span className="font-semibold tabular-nums" style={{ color }}>
+                              {q.accuracy}%
+                            </span>
+                          </div>
+                          <svg
+                            width={trackW}
+                            height={trackH}
+                            viewBox={`0 0 ${trackW} ${trackH}`}
+                            xmlns="http://www.w3.org/2000/svg"
+                            style={{ display: "block", width: "100%" }}
+                          >
+                            <rect
+                              x={0}
+                              y={0}
+                              width={trackW}
+                              height={trackH}
+                              rx={trackH / 2}
+                              fill="#f4f4f5"
+                            />
+                            <rect
+                              x={0}
+                              y={0}
+                              width={fillW}
+                              height={trackH}
+                              rx={trackH / 2}
+                              fill={color}
+                            />
+                          </svg>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>

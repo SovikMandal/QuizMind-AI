@@ -9,6 +9,8 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 import { DiscoverSkeleton } from "@/components/DiscoverSkeleton";
 import { QuizListSkeleton } from "@/components/QuizListSkeleton";
+import { MyQuizzesSkeleton } from "@/components/MyQuizzesSkeleton";
+import { TakeQuizSkeleton } from "@/components/TakeQuizSkeleton";
 
 const Landing = lazy(() => import("@/pages/Landing"));
 const Login = lazy(() => import("@/pages/Login"));
@@ -67,11 +69,11 @@ export default function App() {
           <Route path="/quiz/create" element={protect(<CreateQuiz />)} />
           <Route path="/discover" element={protect(<Suspense fallback={<DiscoverSkeleton />}><Discover /></Suspense>)} />
           <Route path="/discover/:type" element={protect(<Suspense fallback={<QuizListSkeleton />}><QuizList /></Suspense>)} />
-          <Route path="/my-quizzes" element={protect(<MyQuizzes />)} />
+          <Route path="/my-quizzes" element={protect(<Suspense fallback={<MyQuizzesSkeleton />}><MyQuizzes /></Suspense>)} />
           <Route path="/join/:quizId" element={protect(<JoinQuiz />)} />
           <Route path="/results" element={protect(<Suspense fallback={<DashboardSkeleton />}><ResultsRedirect /></Suspense>)} />
           <Route path="/play/:sessionId" element={protect(<PlayQuiz />)} />
-          <Route path="/take/:sessionId" element={protect(<TakeQuiz />)} />
+          <Route path="/take/:sessionId" element={protect(<Suspense fallback={<TakeQuizSkeleton />}><TakeQuiz /></Suspense>)} />
           <Route path="/results/:sessionId" element={protect(<Results />)} />
           <Route path="/analytics/:sessionId" element={protect(<Suspense fallback={<DashboardSkeleton />}><Analytics /></Suspense>)} />
           <Route path="/profile" element={protect(<Profile />)} />

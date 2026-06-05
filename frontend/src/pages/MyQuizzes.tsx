@@ -25,6 +25,7 @@ import { api, apiError } from "@/lib/api";
 import toast from "react-hot-toast";
 import { useAuth } from "@/stores/auth";
 import { Button, Card, cn } from "@/components/ui";
+import { MyQuizzesSkeleton } from "@/components/MyQuizzesSkeleton";
 
 interface MyQuiz {
   id: string;
@@ -68,10 +69,13 @@ export default function MyQuizzes() {
   const [quizzes, setQuizzes] = useState<MyQuiz[]>([]);
   const [joined, setJoined] = useState<JoinedQuiz[]>([]);
   const [pendingDelete, setPendingDelete] = useState<MyQuiz | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/quizzes/mine").then((r) => setQuizzes(r.data.quizzes)).catch(() => {});
-    api.get("/users/me/history").then((r) => setJoined(r.data.participated)).catch(() => {});
+    Promise.allSettled([
+      api.get("/quizzes/mine").then((r) => setQuizzes(r.data.quizzes)),
+      api.get("/users/me/history").then((r) => setJoined(r.data.participated)),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const otherQuizzes = joined.filter((j) => j.creatorId !== user?.id);
@@ -122,6 +126,8 @@ export default function MyQuizzes() {
       setPendingDelete(null);
     }
   };
+
+  if (loading) return <MyQuizzesSkeleton />;
 
   return (
     <main className="mx-auto max-w-[1140px] px-6 py-8">

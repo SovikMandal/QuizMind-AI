@@ -1,7 +1,6 @@
 # QuizMind AI — Development Journal (Challenges & Solutions)
 
-A feature-by-feature record of what was built, the problems hit along the way, the
-approach taken, and how each was solved. Written to help explain the work in an interview.
+A feature-by-feature record of what i was built, what the problems i face along the way, the approach i taken, and how i solved each problem. Written for help you to understand the cod ein detail.
 
 **Stack:** React 18 + Vite + TypeScript + Zustand + Tailwind (frontend) · Node/Express 5 +
 TypeScript + Prisma + PostgreSQL + Redis + Socket.IO (backend).
@@ -53,7 +52,7 @@ real-time hot path; Prisma as the single source of truth for persisted data.
 
 **Without Zod:**
 ```typescript
-// ❌ No validation - accepts anything
+// No validation - accepts anything
 app.post('/quiz', (req, res) => {
   const quiz = req.body;  // Could be { title: 123 } or null or anything
   await prisma.quiz.create({ data: quiz });  // Crashes at runtime
@@ -62,7 +61,7 @@ app.post('/quiz', (req, res) => {
 
 **With Zod:**
 ```typescript
-// ✅ Runtime validation + TypeScript types
+// Runtime validation + TypeScript types
 const createQuizSchema = z.object({
   title: z.string().min(1).max(255),
   difficulty: z.enum(['easy', 'medium', 'hard']),

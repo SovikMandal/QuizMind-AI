@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useAuth } from "@/stores/auth";
+import { warmUpApi } from "@/lib/api";
 import { Navbar } from "@/components/Navbar";
 import { ProtectedRoute, PublicOnlyRoute } from "@/components/ProtectedRoute";
 import { LoadingScreen } from "@/components/LoadingScreen";
@@ -39,6 +40,10 @@ export default function App() {
   const { initializing, loadSession } = useAuth();
 
   useEffect(() => {
+    // Nudge the API awake (Render free tier spins down after ~15 min idle)
+    // so the cold start happens in parallel with our auth call instead of
+    // stalling it.
+    warmUpApi();
     loadSession();
   }, [loadSession]);
 

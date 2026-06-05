@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { api, tokenStore } from "@/lib/api";
+import { api, tokenStore, trySilentRefresh } from "@/lib/api";
 import type { User } from "@/types";
 
 interface AuthState {
@@ -46,14 +46,24 @@ export const useAuth = create<AuthState>((set) => ({
   },
 
   loadSession: async () => {
+    // If there's no access token (e.g. the tab was closed long enough for it
+    // to expire and be cleared), still try a silent refresh — the httpOnly
+    // refresh cookie lives for 7 days and should keep the session alive.
     if (!tokenStore.get()) {
-      set({ initializing: false });
-      return;
+      const refreshed = await trySilentRefresh();
+      if (!refreshed) {
+        set({ initializing: false });
+        return;
+      }
     }
+
     try {
       const res = await api.get("/users/me");
       set({ user: res.data.user });
     } catch {
+      // The response interceptor already handles 401 by attempting a refresh
+      // and clearing the token if that fails. If we land here it means the
+      // session genuinely can't be restored.
       tokenStore.clear();
     } finally {
       set({ initializing: false });

@@ -92,11 +92,21 @@ export default function Analytics() {
 
       <AnalyticsFooter />
 
-      {/* Off-screen report used as the html2canvas source. Kept in the DOM so it
-          actually paints, positioned off-screen and out of the accessibility tree. */}
+      {/* Off-screen report used as the html2canvas source. Kept fully painted
+          (opacity:0 + clip-path) instead of pushed to negative coordinates,
+          because Chromium can deprioritize paint for elements positioned far
+          off-screen — leading to "no CSS" captures. */}
       <div
         aria-hidden
-        style={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none" }}
+        style={{
+          position: "fixed",
+          left: 0,
+          top: 0,
+          opacity: 0,
+          pointerEvents: "none",
+          zIndex: -1,
+          clipPath: "inset(0 100% 100% 0)",
+        }}
       >
         <AnalyticsReport ref={reportRef} data={reportData} />
       </div>

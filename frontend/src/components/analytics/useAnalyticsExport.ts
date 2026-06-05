@@ -25,6 +25,31 @@ interface Options {
 }
 
 /**
+ * Sample a small grid of pixels on the captured canvas. If everything is
+ * white/transparent, foreignObjectRendering produced a blank result and the
+ * caller should retry with the default renderer.
+ */
+function isBlankCanvas(canvas: HTMLCanvasElement): boolean {
+  try {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return false;
+    const samples = 64;
+    const stepX = Math.max(1, Math.floor(canvas.width / samples));
+    const stepY = Math.max(1, Math.floor(canvas.height / samples));
+    for (let y = 0; y < canvas.height; y += stepY) {
+      for (let x = 0; x < canvas.width; x += stepX) {
+        const [r, g, b, a] = ctx.getImageData(x, y, 1, 1).data;
+        // Found any non-white, non-transparent pixel → not blank.
+        if (a > 10 && (r < 250 || g < 250 || b < 250)) return false;
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Captures the off-screen report node with html2canvas-pro and emits a
  * multi-page Letter-size PDF via jsPDF. Enforces the per-day tier quota by
  * consuming a slot on the server before generating the file.
@@ -71,9 +96,10 @@ export function useAnalyticsExport({ sessionId, quizTitle }: Options) {
         return;
       }
 
-      // Wait for web fonts + one paint frame so the off-screen node has its
-      // computed styles and lucide SVG icons fully rendered before capture.
-      // Without this the rasterized PDF can look unstyled.
+      // Wait for web fonts + give the browser real time (not just one rAF) to
+      // resolve Tailwind v4 :root CSS variables on the off-screen node before
+      // capture. Without this the rasterized PDF often had no styles at all
+      // because the cloned document had unresolved `var(--color-*)` references.
       if (document.fonts?.ready) {
         try {
           await document.fonts.ready;
@@ -81,24 +107,53 @@ export function useAnalyticsExport({ sessionId, quizTitle }: Options) {
           /* ignore */
         }
       }
+      // Force a synchronous layout/paint pass on the off-screen node, then
+      // yield twice so the compositor commits before html2canvas reads styles.
+      void node.offsetHeight;
       await new Promise((r) => requestAnimationFrame(() => r(null)));
+      await new Promise((r) => setTimeout(r, 50));
 
       // Cap pixel ratio: scale 2 on a 4K screen produced 4000+px wide canvases
       // and bloated the PDF to ~18MB. 1.5 keeps text crisp at Letter size.
       const scale = Math.min(1.5, window.devicePixelRatio || 1.5);
 
-      const canvas = await html2canvas(node, {
+      // `foreignObjectRendering: true` embeds the live DOM in an SVG
+      // <foreignObject> and lets the browser render it natively. This is
+      // dramatically more reliable than html2canvas-pro's JS CSS engine for
+      // Tailwind v4, which uses :root CSS custom properties (--color-zinc-950
+      // etc.) that the JS renderer often fails to resolve in its cloned
+      // iframe — producing unstyled PDFs.
+      const captureOptions = {
         scale,
         backgroundColor: "#ffffff",
         useCORS: true,
+        allowTaint: false,
         logging: false,
-        // Pin the layout to the report's intrinsic width so off-screen
-        // positioning can't truncate the capture.
+        imageTimeout: 0,
+        removeContainer: true,
         width: node.offsetWidth,
         height: node.offsetHeight,
         windowWidth: node.offsetWidth,
         windowHeight: node.offsetHeight,
-      });
+      } as const;
+
+      let canvas: HTMLCanvasElement;
+      try {
+        canvas = await html2canvas(node, {
+          ...captureOptions,
+          foreignObjectRendering: true,
+        });
+        // Some browsers silently produce a blank canvas with foreignObject
+        // (most often when an external stylesheet is involved). Detect it
+        // and fall back to the standard renderer.
+        if (isBlankCanvas(canvas)) {
+          canvas = await html2canvas(node, captureOptions);
+        }
+      } catch {
+        // foreignObjectRendering can throw in Safari/Firefox edge cases.
+        // Fall back to the default renderer rather than failing the export.
+        canvas = await html2canvas(node, captureOptions);
+      }
 
       // `compress: true` enables jsPDF's deflate stream compression on
       // embedded images and metadata — drops file size noticeably.

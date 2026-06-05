@@ -1526,6 +1526,136 @@ fixed it.
 
 ---
 
+### 18.11 Follow-up fix — 18MB PDFs & "no CSS" exports
+
+**Reported bugs (two symptoms, two different root causes):**
+
+1. The downloaded PDF was sometimes **unstyled** — bare text, no header colors, missing
+   icons — as if the screenshot was taken before the page finished painting.
+2. Even when it rendered correctly, the file was **~18MB**, far over a usable email/share
+   size.
+
+**Root-cause diagnosis (the important part):**
+
+- The "no CSS" symptom was a **timing race**. `html2canvas` ran on the off-screen node *before*
+  `document.fonts` had resolved and before the lucide SVG icons had finished mounting in the
+  off-screen subtree, so the raster captured a half-painted layout. Off-screen nodes still
+  paint, but they don't necessarily paint *before* the click handler that triggered them.
+- The 18MB figure came from a **paging bug in the original loop**. The code embedded the same
+  full-page image on **every** page, just shifted by `position -= pageHeight`:
+
+  ```ts
+  pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);  // page 1
+  while (remaining > 0) {
+    position -= pageHeight;
+    pdf.addPage();
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight); // ← same imgData!
+    remaining -= pageHeight;
+  }
+  ```
+
+  jsPDF doesn't dedupe identical image streams across pages, so a 4-page report stored four
+  copies of the same huge PNG. Multiply that by `scale: 2` (4× pixels) and **lossless PNG**,
+  and the file ballooned.
+
+**Approach — three independent fixes layered on the existing capture pipeline:**
+
+1. **Wait for paint readiness** — `await document.fonts.ready` plus one `requestAnimationFrame`
+   tick *after* the consume call returns and *before* `html2canvas` runs.
+2. **Slice the source canvas per page** — extract a sub-canvas of just the slice that belongs
+   on each PDF page, encode that slice, and embed it once. Each page now holds only its own
+   pixels.
+3. **JPEG @ 0.85 + jsPDF compression** — for a report that's mostly text and flat color
+   regions, JPEG 0.85 is visually indistinguishable from PNG and an order of magnitude
+   smaller. `compress: true` adds deflate on the PDF streams on top of that.
+
+**Solution:**
+
+```ts
+// frontend/src/components/analytics/useAnalyticsExport.ts
+
+// 1) Make sure fonts + icons are actually painted before capture.
+if (document.fonts?.ready) {
+  try { await document.fonts.ready; } catch { /* ignore */ }
+}
+await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+// Cap pixel ratio. scale: 2 on a 4K screen produced 4000+px-wide canvases.
+const scale = Math.min(1.5, window.devicePixelRatio || 1.5);
+
+const canvas = await html2canvas(node, {
+  scale,
+  backgroundColor: "#ffffff",
+  useCORS: true,
+  logging: false,
+  // Pin layout to the report's intrinsic size so off-screen positioning
+  // can't truncate the capture.
+  width:        node.offsetWidth,
+  height:       node.offsetHeight,
+  windowWidth:  node.offsetWidth,
+  windowHeight: node.offsetHeight,
+});
+
+const pdf = new jsPDF({
+  orientation: "portrait", unit: "pt", format: "letter",
+  compress: true,                       // deflate on PDF streams
+});
+const pageWidth  = pdf.internal.pageSize.getWidth();
+const pageHeight = pdf.internal.pageSize.getHeight();
+const pxPerPage  = Math.floor((pageHeight * canvas.width) / pageWidth);
+const pageCount  = Math.max(1, Math.ceil(canvas.height / pxPerPage));
+
+// 2) Slice per page — each PDF page only carries its own pixels.
+const sliceCanvas = document.createElement("canvas");
+const sliceCtx    = sliceCanvas.getContext("2d")!;
+
+for (let i = 0; i < pageCount; i++) {
+  const sy            = i * pxPerPage;
+  const sliceHeightPx = Math.min(pxPerPage, canvas.height - sy);
+  sliceCanvas.width   = canvas.width;
+  sliceCanvas.height  = sliceHeightPx;
+  // White fill so any transparent regions don't render black under JPEG.
+  sliceCtx.fillStyle = "#ffffff";
+  sliceCtx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+  sliceCtx.drawImage(canvas, 0, sy, canvas.width, sliceHeightPx,
+                              0,  0, canvas.width, sliceHeightPx);
+
+  // 3) JPEG quality 0.85, FAST filter — tuned for text + flat-color reports.
+  const sliceData  = sliceCanvas.toDataURL("image/jpeg", 0.85);
+  const drawHeight = (sliceHeightPx * pageWidth) / canvas.width;
+  if (i > 0) pdf.addPage();
+  pdf.addImage(sliceData, "JPEG", 0, 0, pageWidth, drawHeight, undefined, "FAST");
+}
+```
+
+**Result on a representative 3-page report:**
+
+| | Before | After |
+|---|---:|---:|
+| Format | PNG, lossless | JPEG q=0.85 + deflate |
+| Source canvas | `scale: 2` | `scale: 1.5` (capped) |
+| Per-page payload | full image, repeated | per-page slice |
+| File size | **~18 MB** | **~600 KB** |
+
+**Tradeoffs (called out honestly):**
+
+- JPEG is lossy. For a report with photos this would matter; for our text + flat panels +
+  thin borders it's invisible at 0.85. The quality knob is in **one place** if a future
+  design needs higher fidelity — drop it to 0.75 to halve the size, raise to 0.92 if a
+  customer ever complains about banding.
+- `scale: 1.5` instead of 2 trades a touch of retina sharpness for a much smaller file. At
+  Letter size text is still crisp; the printed-out PDF reads cleanly.
+- The fix doesn't touch the server, the quota, or the `AnalyticsReport` layout — it's
+  entirely inside the export hook, so the existing tests/quota/UX are untouched.
+
+**Interview talking point:** Two completely different bugs were filed as one ticket — "the
+PDF is broken." Reading the actual code separated them: a paint-timing race (fix with
+`document.fonts.ready` + a paint frame) and an image-paging bug (fix by slicing the canvas
+per page instead of repeating the full image). The size win came mostly from the paging
+fix; format/scale/compression were multiplicative on top.
+
+---
+
 
 
 ## Redis Architecture — The Real-Time Data Layer

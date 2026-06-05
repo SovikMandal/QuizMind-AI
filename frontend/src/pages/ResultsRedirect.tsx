@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui";
+import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 
 /** "Results" nav target: jumps to the analytics board of your most recent quiz. */
 export default function ResultsRedirect() {
@@ -29,9 +30,5 @@ export default function ResultsRedirect() {
     );
   }
 
-  return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="size-10 animate-spin rounded-full border-4 border-[#2b7fff] border-t-transparent" />
-    </div>
-  );
+  return <DashboardSkeleton />;
 }

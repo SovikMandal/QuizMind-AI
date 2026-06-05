@@ -31,6 +31,7 @@ import {
 import { api, apiError } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui";
+import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 
 const card = "rounded-2xl border border-zinc-200 bg-white shadow-sm";
 
@@ -67,7 +68,7 @@ export default function Analytics() {
   }, [sessionId]);
 
   if (error) return <main className="mx-auto max-w-xl px-6 py-20 text-center text-red-600">{error}</main>;
-  if (!d) return <main className="px-6 py-20 text-center text-zinc-500">Loading…</main>;
+  if (!d) return <DashboardSkeleton />;
 
   const total = d.quiz.totalPoints || 1;
   const pct = (score: number) => Math.round((score / total) * 100);

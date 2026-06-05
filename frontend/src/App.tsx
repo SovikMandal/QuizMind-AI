@@ -6,6 +6,7 @@ import { warmUpApi } from "@/lib/api";
 import { Navbar } from "@/components/Navbar";
 import { ProtectedRoute, PublicOnlyRoute } from "@/components/ProtectedRoute";
 import { LoadingScreen } from "@/components/LoadingScreen";
+import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 
 const Landing = lazy(() => import("@/pages/Landing"));
 const Login = lazy(() => import("@/pages/Login"));
@@ -66,11 +67,11 @@ export default function App() {
           <Route path="/discover/:type" element={protect(<QuizList />)} />
           <Route path="/my-quizzes" element={protect(<MyQuizzes />)} />
           <Route path="/join/:quizId" element={protect(<JoinQuiz />)} />
-          <Route path="/results" element={protect(<ResultsRedirect />)} />
+          <Route path="/results" element={protect(<Suspense fallback={<DashboardSkeleton />}><ResultsRedirect /></Suspense>)} />
           <Route path="/play/:sessionId" element={protect(<PlayQuiz />)} />
           <Route path="/take/:sessionId" element={protect(<TakeQuiz />)} />
           <Route path="/results/:sessionId" element={protect(<Results />)} />
-          <Route path="/analytics/:sessionId" element={protect(<Analytics />)} />
+          <Route path="/analytics/:sessionId" element={protect(<Suspense fallback={<DashboardSkeleton />}><Analytics /></Suspense>)} />
           <Route path="/profile" element={protect(<Profile />)} />
           <Route path="/notifications" element={protect(<Notifications />)} />
           <Route path="*" element={<Navigate to="/" replace />} />

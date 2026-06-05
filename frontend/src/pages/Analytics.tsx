@@ -31,7 +31,10 @@ export default function Analytics() {
       .catch((e) => setError(apiError(e)));
   }, [sessionId]);
 
-  const { reportRef, exporting, exported, exportPdf, dismiss } = useAnalyticsExport(d?.quiz.title ?? "");
+  const { reportRef, exporting, exported, quota, exportPdf, dismiss } = useAnalyticsExport({
+    sessionId,
+    quizTitle: d?.quiz.title ?? "",
+  });
 
   // Pass rate from the score distribution: count of buckets whose lower bound is >= 50%.
   const passRate = useMemo(() => {
@@ -64,6 +67,7 @@ export default function Analytics() {
         <AnalyticsHeader
           quiz={d.quiz}
           exporting={exporting}
+          quota={quota}
           onExport={exportPdf}
           onShare={handleShare}
         />

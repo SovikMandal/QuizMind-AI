@@ -10,15 +10,33 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import type { AnalyticsData } from "./types";
+import type { ExportQuota } from "./useAnalyticsExport";
 
 interface Props {
   quiz: AnalyticsData["quiz"];
   exporting: boolean;
+  quota: ExportQuota | null;
   onExport: () => void;
   onShare: () => void;
 }
 
-export function AnalyticsHeader({ quiz, exporting, onExport, onShare }: Props) {
+const tierLabel: Record<ExportQuota["tier"], string> = {
+  free: "Free",
+  pro: "Pro",
+  premium: "Premium",
+};
+
+export function AnalyticsHeader({ quiz, exporting, quota, onExport, onShare }: Props) {
+  const exhausted = quota ? quota.remaining <= 0 : false;
+
+  let exportText = "Export";
+  if (exporting) exportText = "Exporting…";
+  else if (quota) {
+    exportText = exhausted
+      ? `Limit reached (${tierLabel[quota.tier]})`
+      : `Export · ${quota.remaining} left today`;
+  }
+
   return (
     <>
       <div className="mb-6 flex items-center gap-2 text-sm text-[#71717b]">
@@ -61,8 +79,20 @@ export function AnalyticsHeader({ quiz, exporting, onExport, onShare }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-2" onClick={onExport} disabled={exporting}>
-            <Download className="size-4" /> {exporting ? "Exporting…" : "Export"}
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={onExport}
+            disabled={exporting || exhausted}
+            title={
+              exhausted
+                ? `You've used all ${quota?.limit} exports for today. Resets at ${new Date(
+                    quota!.resetAt
+                  ).toLocaleString()}.`
+                : undefined
+            }
+          >
+            <Download className="size-4" /> {exportText}
           </Button>
           <Button className="gap-2" onClick={onShare}>
             <Share2 className="size-4" /> Share quiz

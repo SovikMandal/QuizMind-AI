@@ -1,7 +1,7 @@
 export type { AnalyticsData, LbEntry } from "./types";
 export { fmtTime, accColor, pctOf, cardClass } from "./format";
 export { buildReportData } from "./buildReportData";
-export { useAnalyticsExport, type ExportedFile } from "./useAnalyticsExport";
+export { useAnalyticsExport, type ExportedFile, type ExportQuota } from "./useAnalyticsExport";
 export { AnalyticsHeader } from "./AnalyticsHeader";
 export { MetricCards } from "./MetricCards";
 export { Charts } from "./Charts";

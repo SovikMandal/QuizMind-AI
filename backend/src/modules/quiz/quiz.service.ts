@@ -149,6 +149,22 @@ export const QuizService = {
       }
       statsByQuiz.set(s.quizId, e);
     }
+
+    // Most recent session per quiz where the creator themselves attempted as a
+    // participant. Null when they haven't taken it yet — the UI uses that to
+    // toggle between Take quiz and View results.
+    const myAttempts = await prisma.participant.findMany({
+      where: { userId, session: { quizId: { in: quizzes.map((q) => q.id) } } },
+      orderBy: { joinedAt: "desc" },
+      select: { sessionId: true, session: { select: { quizId: true } } },
+    });
+    const myLatestByQuiz = new Map<string, string>();
+    for (const p of myAttempts) {
+      if (!myLatestByQuiz.has(p.session.quizId)) {
+        myLatestByQuiz.set(p.session.quizId, p.sessionId);
+      }
+    }
+
     return quizzes.map((q) => {
       const e = statsByQuiz.get(q.id);
       const accuracy =
@@ -161,6 +177,7 @@ export const QuizService = {
         questionCount: q._count.questions,
         participants: e?.count ?? 0,
         accuracy,
+        myLatestSessionId: myLatestByQuiz.get(q.id) ?? null,
       };
     });
   },

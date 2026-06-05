@@ -15,5 +15,6 @@ router.post("/me/avatar", avatarUpload.single("avatar"), controller.uploadAvatar
 router.get("/me/stats", controller.getStats);
 router.get("/me/dashboard", controller.getDashboard);
 router.get("/me/history", analytics.history);
+router.get("/me/exports/quota", analytics.exportQuota);
 
 export default router;

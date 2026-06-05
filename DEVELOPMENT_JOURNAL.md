@@ -1180,6 +1180,354 @@ the bottleneck is Postgres connections/write throughput at submit time, not the 
 
 
 
+## Feature 18 — Analytics PDF export with tier-based daily quotas
+
+**Requirement:** The Analytics page already had an Export button that did nothing. Two
+related changes:
+
+1. Make Export download a **branded, multi-section PDF** of the report (header, metric cards,
+   score distribution, hardest questions, leaderboard, certification).
+2. Cap exports per day **by subscription tier** — free **1/day**, pro **10/day**, premium
+   **20/day** — enforced server-side, with the FE button reflecting remaining count and
+   disabling at zero.
+
+The full feature spans the FE (capture → PDF → success modal), a custom hook, a Redis-backed
+quota counter, and two REST endpoints.
+
+---
+
+### 18.1 Generating the PDF
+
+**First attempt — `jsPDF` with manual layout.** Drawing every text/line/rectangle by hand
+mirrors the page styling poorly and is brittle. Discarded.
+
+**Approach taken — DOM screenshot + image paging.** Render the report layout off-screen as
+real HTML and use `html2canvas` to rasterize it, then page that bitmap through `jsPDF`. This
+keeps the PDF visually identical to the design without re-implementing layout in jsPDF
+primitives.
+
+```ts
+// frontend/src/components/analytics/useAnalyticsExport.ts
+const canvas = await html2canvas(node, {
+  scale: 2,                    // 2× for crisp output on retina/print
+  backgroundColor: "#ffffff",
+  useCORS: true,
+  logging: false,
+});
+const imgData = canvas.toDataURL("image/png");
+const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "letter" });
+
+// Slice the tall image across multiple Letter pages.
+const pageWidth = pdf.internal.pageSize.getWidth();
+const pageHeight = pdf.internal.pageSize.getHeight();
+const imgWidth = pageWidth;
+const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+let remaining = imgHeight;
+let position = 0;
+pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+remaining -= pageHeight;
+while (remaining > 0) {
+  position -= pageHeight;     // shift the image up for the next page
+  pdf.addPage();
+  pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+  remaining -= pageHeight;
+}
+```
+
+**Off-screen mounting trick.** The report node has to actually paint for `html2canvas` to
+read computed styles. `display:none` skips layout, so I positioned it far off-screen instead
+and marked it `aria-hidden`:
+
+```tsx
+<div aria-hidden style={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none" }}>
+  <AnalyticsReport ref={reportRef} data={reportData} />
+</div>
+```
+
+**Fixed canvas width = 816 px (≈ Letter @ 96 dpi)** so the rasterization is deterministic
+regardless of the host page's viewport.
+
+---
+
+### 18.2 The `oklch` parser failure (Tailwind v4 surprise)
+
+**Problem:** First click on Export → toast "Could not export report". Console:
+
+```
+Error: Attempting to parse an unsupported color function "oklch"
+  at Object.parse (...html2canvas...)
+```
+
+**Root cause:** Tailwind v4 emits all colors as `oklch()` (modern color space) instead of
+the older `rgb()`/`hsl()` representations. The original `html2canvas` parser pre-dates that
+spec and refuses to consume `oklch()`.
+
+**Options considered:**
+
+1. **Strip Tailwind utility colors from the report** and inline hex values everywhere —
+   massive surface change, dozens of `bg-*`/`text-*`/`border-*` to rewrite.
+2. **Force computed styles to RGB** at runtime — flaky, would need to walk the tree before
+   capture.
+3. **Swap to `html2canvas-pro`** — a maintained fork with `oklch`/`lab`/`lch` support.
+
+I went with (3) — same API, drop-in replacement, smallest blast radius:
+
+```ts
+// before
+import html2canvas from "html2canvas";
+
+// after
+import html2canvas from "html2canvas-pro";
+```
+
+Then `npm uninstall html2canvas` so the dead dep didn't hang around.
+
+---
+
+### 18.3 Modular split (page → focused components + hook)
+
+`Analytics.tsx` had grown to ~450 lines mixing fetch, derived stats, report data adaptation,
+PDF capture, and JSX for every section. I split it into a focused module:
+
+```
+components/analytics/
+  types.ts                — AnalyticsData, LbEntry
+  format.ts               — fmtTime, accColor, pctOf, cardClass
+  buildReportData.ts      — adapts AnalyticsData → ReportData (the PDF layout's input)
+  useAnalyticsExport.ts   — owns the report ref, exporting/exported state, PDF pipeline,
+                            and quota state
+  AnalyticsHeader.tsx     — breadcrumb, hero, Export and Share buttons
+  MetricCards.tsx         — 4 KPI tiles
+  Charts.tsx              — participation area chart + score distribution bar chart
+  Leaderboard.tsx         — top performers table
+  HardestQuestions.tsx    — sidebar accuracy bars
+  AiInsights.tsx          — sidebar CTA
+  ExportSuccessModal.tsx  — post-download dialog
+  AnalyticsFooter.tsx     — page footer
+  AnalyticsReport.tsx     — off-screen layout the PDF is captured from
+  index.ts                — barrel export so the page imports from one place
+```
+
+Page is now ~95 lines: data fetch → derived `passRate` (memoized) → hook → composition.
+Behavior is identical; ownership is clearer.
+
+---
+
+### 18.4 Tier-based daily quotas — design
+
+**Limits** (centralised in one place so FE/BE never drift):
+
+```ts
+// backend/src/modules/analytics/export.service.ts
+export const PDF_EXPORT_LIMITS: Record<UserTier, number> = {
+  free: 1,
+  pro: 10,
+  premium: 20,
+};
+```
+
+**Where to enforce it:**
+
+- **Server-side is mandatory.** PDF rendering is fully client-side, so a motivated user could
+  skip any FE check. The server is the only honest counter.
+- **Client-side is for UX.** Show "X left today", disable at zero, and prevent the network
+  round-trip on the obviously-no path.
+
+**Storage:** Redis. The hot path already uses Redis for live state; daily counters are a
+natural fit (atomic INCR, TTL eviction, no schema migration). Postgres would have worked but
+adds a row per user per day forever, plus a CRON to clean up.
+
+**Bucket key:** `quota:pdf-export:{userId}:{YYYY-MM-DD}` in **UTC**. UTC avoids weird DST
+seams and keeps the bucket aligned across regions. TTL = seconds-to-next-UTC-midnight + 1 h
+buffer for clock skew.
+
+---
+
+### 18.5 Atomic `INCR` with rollback (the canonical Redis rate limit)
+
+**Subtle bug to avoid:** Two clients hit Export at the same instant. Both `GET` the counter,
+both see 9 (limit 10), both `SET` to 10. Now we've allowed 11 exports.
+
+**Fix:** Increment first, *then* compare. If the post-increment value exceeds the limit,
+roll back the counter so we don't permanently lock the user out.
+
+```ts
+// backend/src/utils/dailyQuota.ts
+export async function consumeDailyQuota(namespace, ownerId, limit) {
+  const key = k(namespace, ownerId);
+  const used = await redis.incr(key);
+  if (used === 1) await redis.expire(key, ttlSeconds());  // set TTL only on first hit
+
+  if (used > limit) {
+    await redis.decr(key);   // rollback — caller did not actually consume the slot
+    return { allowed: false, snapshot: { used: limit, limit, remaining: 0, resetAt } };
+  }
+  return { allowed: true, snapshot: { used, limit, remaining: limit - used, resetAt } };
+}
+```
+
+`INCR` is atomic in Redis, so no race exists between read and write. The rollback turns
+this into a "test-and-claim" without needing a Lua script or `WATCH`/`MULTI`.
+
+**Why TTL only on first INCR?** Re-applying `EXPIRE` on every call would shift the bucket's
+end forward and break the "resets at next UTC midnight" contract.
+
+---
+
+### 18.6 Endpoints
+
+```
+GET  /api/v1/users/me/exports/quota             → peek current usage (no side effects)
+POST /api/v1/sessions/:id/analytics/export      → consume one slot, returns 429 if exhausted
+```
+
+The `consume` route lives under `sessions/:id` so it can run the same access check as the
+analytics endpoint (must be quiz creator or a participant). Peek is per-user only, so it
+sits under `users/me/...`.
+
+**`ExportService.consume`:**
+
+```ts
+async consume(sessionId, userId): Promise<ExportQuota> {
+  await ensureAccess(sessionId, userId);                    // 403 if not creator/participant
+  const tier = await loadTier(userId);                      // free | pro | premium
+  const limit = PDF_EXPORT_LIMITS[tier];
+  const { allowed, snapshot } = await consumeDailyQuota(NAMESPACE, userId, limit);
+  if (!allowed) {
+    throw ApiError.tooManyRequests(
+      `Daily export limit reached (${limit}/day on ${tier} plan). Resets at ${snapshot.resetAt}.`,
+      { ...snapshot, tier },
+    );
+  }
+  return { ...snapshot, tier };
+}
+```
+
+I added `ApiError.tooManyRequests` to mirror the existing `forbidden`/`badRequest` helpers
+so the error handler returns a clean 429 with the quota snapshot in `details`.
+
+---
+
+### 18.7 Consume **before** rendering, not after
+
+**Two possible orderings, only one is right:**
+
+| Order | Failure mode |
+|---|---|
+| Render → consume on success | If render fails the user keeps their slot (good for users) but if render *succeeds and consume fails for any reason* we've already given away the PDF for free |
+| **Consume → render** | If render fails the user lost a slot for a failed export (bad UX) but the server is the source of truth and never grants a PDF that wasn't paid for |
+
+I chose **consume-first** because:
+- Bypass-prevention is the whole point.
+- Render failures on a Tailwind/jsPDF stack are rare; we ship pre-validated content from
+  the same server.
+- A free user who really hits a render error has only "lost" one of their daily slot — the
+  worst case is small.
+
+```ts
+// useAnalyticsExport.ts (excerpt)
+try {
+  const res = await api.post<ExportQuota>(`/sessions/${sessionId}/analytics/export`);
+  next = res.data;
+} catch (err) {
+  if (axios.isAxiosError(err) && err.response?.status === 429) {
+    const details = err.response.data?.details as ExportQuota | undefined;
+    if (details) setQuota(details);   // sync UI to server's view
+    toast.error(err.response.data?.error ?? "Daily export limit reached…", { duration: 6000 });
+    return;
+  }
+  toast.error(apiError(err, "Could not start export"));
+  return;
+}
+// …only now do we run html2canvas + jsPDF
+```
+
+If the consume call returns 429, we update local quota state from `details`, surface the
+server message in a toast, and never render the PDF. The button reflects the new state
+immediately on the next render.
+
+---
+
+### 18.8 UX polish
+
+The Export button is one source of truth driven by `(exporting, quota)`:
+
+```tsx
+let exportText = "Export";
+if (exporting) exportText = "Exporting…";
+else if (quota) {
+  exportText = exhausted
+    ? `Limit reached (${tierLabel[quota.tier]})`
+    : `Export · ${quota.remaining} left today`;
+}
+
+<Button
+  variant="outline"
+  onClick={onExport}
+  disabled={exporting || exhausted}
+  title={exhausted ? `Resets at ${new Date(quota!.resetAt).toLocaleString()}.` : undefined}
+>
+  <Download /> {exportText}
+</Button>
+```
+
+Three states from a single conditional:
+1. **Idle, slots remaining** → `Export · 7 left today` (clickable)
+2. **Mid-export** → `Exporting…` (disabled)
+3. **Exhausted** → `Limit reached (Pro)` (disabled, tooltip shows reset time)
+
+The hook also peeks the quota on mount so the button shows the right label before the user
+clicks. After a successful export, local state updates from the server response so the
+counter goes from 7 → 6 without a refetch.
+
+---
+
+### 18.9 Bonus: "Take quiz" vs "View results" on My Quizzes
+
+Adjacent change: in **My Quizzes → Created by you**, the action button now toggles based on
+whether the creator has *attempted* their own quiz.
+
+- Backend: `listMine` now returns `myLatestSessionId` per quiz — the most recent session
+  where the **current user** has a `Participant` row, computed in one extra query and a
+  small map.
+- Frontend: button reads `View results` (→ `/analytics/{myLatestSessionId}`) when present,
+  falls back to the existing `Take quiz` join flow when null.
+
+```ts
+const myAttempts = await prisma.participant.findMany({
+  where: { userId, session: { quizId: { in: quizzes.map((q) => q.id) } } },
+  orderBy: { joinedAt: "desc" },
+  select: { sessionId: true, session: { select: { quizId: true } } },
+});
+const myLatestByQuiz = new Map<string, string>();
+for (const p of myAttempts) {
+  if (!myLatestByQuiz.has(p.session.quizId)) myLatestByQuiz.set(p.session.quizId, p.sessionId);
+}
+```
+
+Originally I returned `latestSessionId` (most recent session for the quiz, regardless of
+who joined). That was wrong for the requirement — a quiz that other people had taken still
+showed "View results" for the creator who hadn't taken it. Renaming + scoping by `userId`
+fixed it.
+
+---
+
+### 18.10 What I'd do next
+
+- **Server-side rendering of the PDF** with Puppeteer would close the only remaining
+  bypass (a sophisticated user can render the canvas locally and skip the consume call).
+  Significant infra change — out of scope for this iteration.
+- **Soft refunds on render failure** — release the slot if `html2canvas` throws after
+  consume. Currently the user eats the cost. A small `POST .../release` endpoint would
+  do it.
+- **Sliding window** instead of fixed UTC day, so a midnight burst doesn't double up. Day
+  buckets are fine for the current limits; revisit if abuse appears.
+
+---
+
+
+
 ## Redis Architecture — The Real-Time Data Layer
 
 Redis serves as the **in-memory hot path** for ephemeral state and real-time features. This

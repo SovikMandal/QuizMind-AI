@@ -10,6 +10,7 @@ import {
   Hash,
   KeyRound,
   Play,
+  BarChart3,
   Share2,
   Trash2,
   Trophy,
@@ -39,6 +40,7 @@ interface MyQuiz {
   questionCount: number;
   participants: number;
   accuracy: number;
+  myLatestSessionId: string | null;
 }
 
 interface JoinedQuiz {
@@ -195,7 +197,19 @@ export default function MyQuizzes() {
 
                 <div className="mt-auto flex gap-2">
                   <Button variant="outline" className="!text-[#2b7fff]" onClick={() => share(q)}><Share2 className="size-4" /></Button>
-                  <Button variant="outline" className="flex-1" onClick={() => join(q)}><Play className="size-4" /> Take quiz</Button>
+                  {q.myLatestSessionId ? (
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => navigate(`/analytics/${q.myLatestSessionId}`)}
+                    >
+                      <BarChart3 className="size-4" /> View results
+                    </Button>
+                  ) : (
+                    <Button variant="outline" className="flex-1" onClick={() => join(q)}>
+                      <Play className="size-4" /> Take quiz
+                    </Button>
+                  )}
                   <Button variant="outline" className="!text-[#e7000b]" onClick={() => setPendingDelete(q)}><Trash2 className="size-4" /></Button>
                 </div>
               </Card>

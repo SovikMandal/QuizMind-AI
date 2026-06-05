@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Sparkles,
@@ -26,10 +26,16 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import toast from "react-hot-toast";
 import { api } from "@/lib/api";
 import { useAuth } from "@/stores/auth";
 import { Button } from "@/components/ui";
 import { DashboardSkeleton } from "@/components/DashboardSkeleton";
+import {
+  buildExportFilename,
+  exportNodeToPdf,
+  triggerPdfDownload,
+} from "@/lib/exportPdf";
 
 const card = "rounded-2xl border border-zinc-200 bg-white shadow-sm";
 
@@ -56,11 +62,36 @@ export default function Dashboard() {
   const [dash, setDash] = useState<DashboardData | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     api.get("/users/me/dashboard").then((r) => setDash(r.data)).catch(() => {}).finally(() => setLoading(false));
     api.get("/users/me/history").then((r) => setHistory(r.data.participated)).catch(() => {});
   }, []);
+
+  const handleExport = async () => {
+    if (exporting) return;
+    const node = mainRef.current;
+    if (!node) return;
+    setExporting(true);
+    const t = toast.loading("Preparing your dashboard PDF…");
+    try {
+      const label = user?.username ?? user?.displayName ?? "dashboard";
+      const pdf = await exportNodeToPdf(node, {
+        filename: buildExportFilename("QM-Dashboard", label),
+      });
+      triggerPdfDownload(pdf);
+      toast.success(`Downloaded (${pdf.sizeKb} KB)`, { id: t });
+      // Free the blob URL after the download has been kicked off.
+      setTimeout(() => URL.revokeObjectURL(pdf.blobUrl), 5000);
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not export dashboard", { id: t });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (loading) return <DashboardSkeleton />;
 
@@ -78,7 +109,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <main className="mx-auto flex max-w-[1140px] flex-col gap-12 px-6 py-12">
+      <main ref={mainRef} className="mx-auto flex max-w-[1140px] flex-col gap-12 px-6 py-12">
         {/* Welcome */}
         <section className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
           <div className="flex flex-col gap-3">
@@ -93,8 +124,13 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" className="gap-2 px-5">
-              <Download className="size-4" /> Export
+            <Button
+              variant="outline"
+              className="gap-2 px-5"
+              onClick={handleExport}
+              disabled={exporting}
+            >
+              <Download className="size-4" /> {exporting ? "Exporting…" : "Export"}
             </Button>
             <Button className="gap-2 px-5" onClick={() => navigate("/quiz/create")}>
               <Plus className="size-4" /> Create quiz

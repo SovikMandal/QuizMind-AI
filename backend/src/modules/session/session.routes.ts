@@ -14,6 +14,7 @@ router.get("/live", session.listLive);
 router.get("/:id/results", analytics.results);
 router.get("/:id/leaderboard", analytics.leaderboard);
 router.get("/:id/analytics", analytics.analytics);
+router.post("/:id/analytics/export", analytics.exportConsume);
 router.get("/:id", session.getOne);
 
 export default router;

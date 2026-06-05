@@ -1,5 +1,6 @@
 import { RequestHandler } from "express";
 import { AnalyticsService } from "./analytics.service";
+import { ExportService } from "./export.service";
 
 export const results: RequestHandler<{ id: string }> = async (req, res) => {
   res.json(await AnalyticsService.results(req.params.id, req.user!.id));
@@ -15,4 +16,12 @@ export const analytics: RequestHandler<{ id: string }> = async (req, res) => {
 
 export const history: RequestHandler = async (req, res) => {
   res.json(await AnalyticsService.history(req.user!.id));
+};
+
+export const exportQuota: RequestHandler = async (req, res) => {
+  res.json(await ExportService.peek(req.user!.id));
+};
+
+export const exportConsume: RequestHandler<{ id: string }> = async (req, res) => {
+  res.json(await ExportService.consume(req.params.id, req.user!.id));
 };

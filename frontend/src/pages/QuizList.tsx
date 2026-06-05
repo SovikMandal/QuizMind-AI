@@ -31,6 +31,7 @@ import { api, apiError } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Button, Card, cn } from "@/components/ui";
 import { QuizListSkeleton } from "@/components/QuizListSkeleton";
+import { TakeQuizSkeleton } from "@/components/TakeQuizSkeleton";
 
 interface QuizItem {
   id: string;
@@ -96,6 +97,7 @@ export default function QuizList() {
   const [total, setTotal] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [atBottom, setAtBottom] = useState(false);
+  const [joining, setJoining] = useState(false);
   const loadingRef = useRef(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -140,6 +142,7 @@ export default function QuizList() {
   }, []);
 
   const join = async (body: Record<string, unknown>) => {
+    setJoining(true);
     try {
       const res = await api.post("/sessions/join", body);
       const { sessionId, participantId, quiz, completed, savedAnswers } = res.data;
@@ -148,6 +151,7 @@ export default function QuizList() {
       });
     } catch (err) {
       toast.error(apiError(err, "Could not join quiz"));
+      setJoining(false);
     }
   };
 
@@ -173,6 +177,7 @@ export default function QuizList() {
   );
 
   if (!loaded) return <QuizListSkeleton />;
+  if (joining) return <TakeQuizSkeleton />;
 
   return (
     <main className="mx-auto max-w-5xl px-8 py-10">

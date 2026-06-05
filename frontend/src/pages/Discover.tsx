@@ -21,6 +21,7 @@ import { Button } from "@/components/ui";
 import { Section } from "@/components/Section";
 import { QuizItem } from "@/components/QuizCard";
 import { DiscoverSkeleton } from "@/components/DiscoverSkeleton";
+import { TakeQuizSkeleton } from "@/components/TakeQuizSkeleton";
 
 const card = "rounded-2xl border border-zinc-200 bg-white shadow-sm";
 const inputBase =
@@ -36,6 +37,7 @@ export default function Discover() {
   const [modalPwd, setModalPwd] = useState("");
   const [reminded, setReminded] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [joining, setJoining] = useState(false);
 
   useEffect(() => {
     api.get("/quizzes?limit=50").then((r) => setQuizzes(r.data.quizzes)).catch(() => {}).finally(() => setLoading(false));
@@ -43,8 +45,10 @@ export default function Discover() {
   }, []);
 
   if (loading) return <DiscoverSkeleton/>;
+  if (joining) return <TakeQuizSkeleton />;
 
   const join = async (body: Record<string, unknown>, participants?: number) => {
+    setJoining(true);
     try {
       const res = await api.post("/sessions/join", body);
       const { sessionId, participantId, quiz } = res.data;
@@ -64,6 +68,7 @@ export default function Discover() {
       });
     } catch (err) {
       toast.error(apiError(err, "Could not join quiz"));
+      setJoining(false);
     }
   };
 

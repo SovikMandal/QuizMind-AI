@@ -1,4 +1,5 @@
 import { prisma } from "../../config/db";
+import { redis } from "../../config/redis";
 import { ApiError } from "../../utils/ApiError";
 import { toPublicUser } from "../../utils/sanitizeUser";
 import { UpdateProfileInput, UpdateGoalsInput, goalTypes } from "./user.schemas";
@@ -203,5 +204,29 @@ export const UserService = {
       data: { goals: input.goals },
     });
     return readGoals(input.goals);
+  },
+
+  /**
+   * Permanently delete the user and everything that belongs to them. The
+   * Prisma schema cascades from User to: quizzes (and their questions,
+   * sessions, participants, answers), hosted sessions, participations,
+   * notifications, reminders. We additionally revoke all of the user's
+   * refresh tokens so existing sessions on other devices stop working.
+   */
+  async deleteAccount(userId: string): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) throw ApiError.notFound("User not found");
+
+    // Revoke every refresh token issued for this user. Keys are stored as
+    // `refresh:{userId}:{jti}` — scan + del so we don't block Redis with KEYS.
+    const pattern = `refresh:${userId}:*`;
+    let cursor = "0";
+    do {
+      const [next, batch] = await redis.scan(cursor, "MATCH", pattern, "COUNT", 100);
+      cursor = next;
+      if (batch.length > 0) await redis.del(...batch);
+    } while (cursor !== "0");
+
+    await prisma.user.delete({ where: { id: userId } });
   },
 };

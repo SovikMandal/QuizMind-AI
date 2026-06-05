@@ -11,6 +11,7 @@ const router = Router();
 router.use(authenticate);
 router.get("/me", controller.getMe);
 router.put("/me", validateBody(updateProfileSchema), controller.updateMe);
+router.delete("/me", controller.deleteMe);
 router.post("/me/avatar", avatarUpload.single("avatar"), controller.uploadAvatar);
 router.get("/me/stats", controller.getStats);
 router.get("/me/dashboard", controller.getDashboard);

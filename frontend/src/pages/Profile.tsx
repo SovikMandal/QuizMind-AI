@@ -25,6 +25,8 @@ import {
   Users,
   Flame,
   RotateCcw,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -104,6 +106,7 @@ export default function Profile() {
   const [twoFA, setTwoFA] = useState(false);
   const [emailNotif, setEmailNotif] = useState(true);
   const [cancelStep, setCancelStep] = useState<"confirm" | "otp" | null>(null);
+  const [deleteStep, setDeleteStep] = useState<"confirm" | "deleting" | null>(null);
   const [goals, setGoals] = useState<UserGoal[]>(DEFAULT_GOALS);
   const [goalsBaseline, setGoalsBaseline] = useState<UserGoal[]>(DEFAULT_GOALS);
   const [savingGoals, setSavingGoals] = useState(false);
@@ -240,6 +243,30 @@ export default function Profile() {
     setUser(res.data.user);
     setCancelStep(null);
     toast.success("Plan cancelled — you're on the Free plan");
+  };
+
+  const confirmDelete = async () => {
+    if (deleteStep === "deleting") return;
+    setDeleteStep("deleting");
+    try {
+      // Backend wipes participants, sessions, quizzes, notifications,
+      // reminders, and refresh tokens before deleting the user row.
+      await api.delete("/users/me");
+      // logout() clears the access token + user state in its finally block,
+      // so the protected routes won't try to re-render with a stale user
+      // object before we navigate. The /auth/logout call inside is a no-op
+      // (refresh cookie was already cleared by the delete response).
+      try {
+        await logout();
+      } catch {
+        /* clearing local state is what matters; ignore network errors */
+      }
+      toast.success("Account deleted");
+      navigate("/signup", { replace: true });
+    } catch (err) {
+      setDeleteStep("confirm");
+      toast.error(apiError(err, "Could not delete account"));
+    }
   };
 
   if (!user) return null;
@@ -542,6 +569,37 @@ export default function Profile() {
                 </div>
                 <Button variant="outline" className="h-9 border-[#e7000b]/30 text-[#e7000b]" onClick={onLogout}><LogOut className="size-4" /> Log out</Button>
               </div>
+
+              <div className="flex items-center justify-between rounded-lg border border-[#e7000b]/40 bg-[#e7000b]/5 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-[#e7000b]/10">
+                    <Trash2 className="size-4 text-[#e7000b]" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">Delete account</span>
+                    <span className="text-xs text-[#71717b]">
+                      Permanently remove your account and every quiz, session,
+                      and answer associated with it. This cannot be undone.
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="h-9 border-[#e7000b]/40 bg-white text-[#e7000b] hover:bg-[#e7000b]/10"
+                  onClick={() => setDeleteStep("confirm")}
+                  disabled={deleteStep !== null}
+                >
+                  {deleteStep === "deleting" ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" /> Deleting…
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="size-4" /> Delete account
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </Card>
         </div>
@@ -583,6 +641,71 @@ export default function Profile() {
 
       {cancelStep === "otp" && (
         <OtpModal email={user.email} onBack={() => setCancelStep("confirm")} onResend={requestOtp} onSubmit={confirmCancel} />
+      )}
+
+      {deleteStep && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 p-4">
+          <Card className="w-[480px] max-w-full overflow-hidden p-0">
+            <div className="flex flex-col items-center gap-3 border-b border-zinc-200 bg-zinc-100 px-8 pb-6 pt-8">
+              <div className="flex size-14 items-center justify-center rounded-full bg-[#e7000b]/10">
+                <Trash2 className="size-7 text-[#e7000b]" />
+              </div>
+              <h2 className="text-xl font-bold">Delete your account?</h2>
+            </div>
+            <div className="flex flex-col gap-4 p-8">
+              <p className="text-center text-sm text-[#71717b]">
+                This permanently deletes your QuizMind AI account. There is no undo.
+              </p>
+              <div className="flex flex-col gap-2 rounded-lg bg-[#e7000b]/10 p-4">
+                <span className="text-sm font-semibold text-[#e7000b]">
+                  The following will be removed:
+                </span>
+                {[
+                  "Every quiz you've created and its questions",
+                  "All sessions you've hosted or joined",
+                  "Your answers, scores, and rankings",
+                  "Notifications and quiz reminders",
+                ].map((line) => (
+                  <div key={line} className="flex items-center gap-2 text-sm">
+                    <X className="size-4 text-[#e7000b]" /> {line}
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                <Info className="size-4 shrink-0 text-[#71717b]" />
+                <span className="text-sm text-[#71717b]">
+                  After deletion you'll be redirected to the sign-up page and your active
+                  sessions on other devices will be revoked.
+                </span>
+              </div>
+              <div className="flex gap-4 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setDeleteStep(null)}
+                  disabled={deleteStep === "deleting"}
+                >
+                  Cancel
+                </Button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleteStep === "deleting"}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#e7000b] py-2 text-sm font-medium text-white disabled:opacity-70"
+                >
+                  {deleteStep === "deleting" ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" /> Deleting…
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="size-4" /> Yes, delete my account
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
     </main>
   );

@@ -2,6 +2,7 @@ import { RequestHandler } from "express";
 import { UserService } from "./user.service";
 import { ApiError } from "../../utils/ApiError";
 import { uploadImage, isCloudinaryConfigured } from "../../config/cloudinary";
+import { clearRefreshCookie } from "../../utils/cookies";
 
 export const getMe: RequestHandler = async (req, res) => {
   const user = await UserService.getProfile(req.user!.id);
@@ -29,6 +30,14 @@ export const getGoals: RequestHandler = async (req, res) => {
 export const updateGoals: RequestHandler = async (req, res) => {
   const goals = await UserService.updateGoals(req.user!.id, req.body);
   res.json({ goals });
+};
+
+export const deleteMe: RequestHandler = async (req, res) => {
+  await UserService.deleteAccount(req.user!.id);
+  // Drop the refresh cookie so the browser doesn't keep trying to refresh
+  // an account that no longer exists.
+  clearRefreshCookie(res);
+  res.status(204).send();
 };
 
 export const uploadAvatar: RequestHandler = async (req, res) => {

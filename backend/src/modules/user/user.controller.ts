@@ -22,6 +22,15 @@ export const getDashboard: RequestHandler = async (req, res) => {
   res.json(await UserService.getDashboard(req.user!.id));
 };
 
+export const getGoals: RequestHandler = async (req, res) => {
+  res.json({ goals: await UserService.getGoals(req.user!.id) });
+};
+
+export const updateGoals: RequestHandler = async (req, res) => {
+  const goals = await UserService.updateGoals(req.user!.id, req.body);
+  res.json({ goals });
+};
+
 export const uploadAvatar: RequestHandler = async (req, res) => {
   if (!req.file) throw ApiError.badRequest("No image uploaded");
   if (!isCloudinaryConfigured) {

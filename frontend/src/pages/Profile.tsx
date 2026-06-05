@@ -20,6 +20,11 @@ import {
   AlertTriangle,
   X,
   Info,
+  Target,
+  PencilRuler,
+  Users,
+  Flame,
+  RotateCcw,
 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -30,6 +35,41 @@ import { Button, Card, Input, Label, Badge, cn } from "@/components/ui";
 
 const EDITABLE = ["displayName", "username", "email", "phone", "location", "bio"] as const;
 type Field = (typeof EDITABLE)[number];
+
+type GoalType = "createdQuizzes" | "joinedQuizzes" | "dayStreak";
+interface UserGoal {
+  type: GoalType;
+  label: string;
+  target: number;
+}
+const DEFAULT_GOALS: UserGoal[] = [
+  { type: "createdQuizzes", label: "Create 12 quizzes", target: 12 },
+  { type: "joinedQuizzes", label: "Join 30 quizzes", target: 30 },
+  { type: "dayStreak", label: "20-day streak", target: 20 },
+];
+const GOAL_META: Record<
+  GoalType,
+  { title: string; helper: string; Icon: typeof Target; suffix: string }
+> = {
+  createdQuizzes: {
+    title: "Quizzes Created",
+    helper: "Number of quizzes you create this month",
+    Icon: PencilRuler,
+    suffix: "quizzes",
+  },
+  joinedQuizzes: {
+    title: "Quizzes Joined",
+    helper: "Number of quizzes you join this month",
+    Icon: Users,
+    suffix: "quizzes",
+  },
+  dayStreak: {
+    title: "Day Streak",
+    helper: "Consecutive days with quiz activity",
+    Icon: Flame,
+    suffix: "days",
+  },
+};
 
 const plans = {
   free: { label: "Free Plan", price: "₹0", desc: "Up to 10 quizzes with core question types.", limit: 10, features: [] as string[] },
@@ -64,6 +104,9 @@ export default function Profile() {
   const [twoFA, setTwoFA] = useState(false);
   const [emailNotif, setEmailNotif] = useState(true);
   const [cancelStep, setCancelStep] = useState<"confirm" | "otp" | null>(null);
+  const [goals, setGoals] = useState<UserGoal[]>(DEFAULT_GOALS);
+  const [goalsBaseline, setGoalsBaseline] = useState<UserGoal[]>(DEFAULT_GOALS);
+  const [savingGoals, setSavingGoals] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -78,7 +121,58 @@ export default function Profile() {
       });
     }
     api.get("/users/me/stats").then((r) => setStats(r.data.stats)).catch(() => {});
+    // Load the user's customised goals so the editor reflects whatever's
+    // currently driving the dashboard. Falls back to defaults silently.
+    api
+      .get<{ goals: UserGoal[] }>("/users/me/goals")
+      .then((r) => {
+        const merged = mergeWithDefaults(r.data.goals);
+        setGoals(merged);
+        setGoalsBaseline(merged);
+      })
+      .catch(() => {});
   }, [user]);
+
+  /** Reorder + fill missing types so the UI always renders the three rows
+   *  in a consistent order regardless of what the API returns. */
+  function mergeWithDefaults(input: UserGoal[]): UserGoal[] {
+    const byType = new Map(input.map((g) => [g.type, g]));
+    return DEFAULT_GOALS.map((d) => byType.get(d.type) ?? d);
+  }
+
+  const goalsDirty = goals.some(
+    (g, i) => g.label !== goalsBaseline[i].label || g.target !== goalsBaseline[i].target
+  );
+
+  const updateGoal = (i: number, patch: Partial<UserGoal>) => {
+    setGoals((current) => current.map((g, idx) => (idx === i ? { ...g, ...patch } : g)));
+  };
+
+  const saveGoals = async () => {
+    // Client-side validation that mirrors the Zod schema on the server.
+    for (const g of goals) {
+      if (!g.label.trim()) return toast.error("Goal labels can't be empty");
+      if (!Number.isInteger(g.target) || g.target < 1 || g.target > 9999) {
+        return toast.error("Goal targets must be between 1 and 9999");
+      }
+    }
+    setSavingGoals(true);
+    try {
+      const res = await api.put<{ goals: UserGoal[] }>("/users/me/goals", { goals });
+      const merged = mergeWithDefaults(res.data.goals);
+      setGoals(merged);
+      setGoalsBaseline(merged);
+      toast.success("Goals updated");
+    } catch (err) {
+      toast.error(apiError(err, "Could not save goals"));
+    } finally {
+      setSavingGoals(false);
+    }
+  };
+
+  const resetGoals = () => {
+    setGoals(DEFAULT_GOALS.map((g) => ({ ...g })));
+  };
 
   const onAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -218,6 +312,89 @@ export default function Profile() {
                   <span className="text-xs text-[#71717b]">{label}</span>
                 </div>
               ))}
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <h3 className="flex items-center gap-2 text-base font-semibold">
+                  <Target className="size-4 text-[#2b7fff]" /> Customize Goals
+                </h3>
+                <p className="text-sm text-[#71717b]">
+                  Set personal targets for the goals that appear on your dashboard.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={resetGoals}
+                className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs text-[#71717b] hover:bg-zinc-100"
+                title="Reset to default targets"
+              >
+                <RotateCcw className="size-3.5" /> Reset
+              </button>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-4">
+              {goals.map((g, i) => {
+                const meta = GOAL_META[g.type];
+                const Icon = meta.Icon;
+                return (
+                  <div
+                    key={g.type}
+                    className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-lg bg-[#2b7fff]/10">
+                        <Icon className="size-4 text-[#2b7fff]" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{meta.title}</span>
+                        <span className="text-xs text-[#71717b]">{meta.helper}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label className="text-xs text-[#71717b]">Display label</Label>
+                      <Input
+                        className="h-9"
+                        value={g.label}
+                        onChange={(e) => updateGoal(i, { label: e.target.value })}
+                        maxLength={60}
+                        placeholder={DEFAULT_GOALS[i].label}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label className="text-xs text-[#71717b]">Target ({meta.suffix})</Label>
+                      <Input
+                        className="h-9"
+                        type="number"
+                        min={1}
+                        max={9999}
+                        step={1}
+                        value={Number.isNaN(g.target) ? "" : g.target}
+                        onChange={(e) =>
+                          updateGoal(i, {
+                            target: e.target.value === "" ? NaN : Number(e.target.value),
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setGoals(goalsBaseline.map((g) => ({ ...g })))}
+                disabled={!goalsDirty || savingGoals}
+              >
+                Cancel
+              </Button>
+              <Button onClick={saveGoals} disabled={!goalsDirty || savingGoals}>
+                <Check className="size-4" /> {savingGoals ? "Saving…" : "Save goals"}
+              </Button>
             </div>
           </Card>
         </div>

@@ -1,7 +1,52 @@
 import { prisma } from "../../config/db";
 import { ApiError } from "../../utils/ApiError";
 import { toPublicUser } from "../../utils/sanitizeUser";
-import { UpdateProfileInput } from "./user.schemas";
+import { UpdateProfileInput, UpdateGoalsInput, goalTypes } from "./user.schemas";
+
+type GoalType = (typeof goalTypes)[number];
+interface UserGoal {
+  type: GoalType;
+  label: string;
+  target: number;
+}
+
+/** Defaults applied when the user hasn't customised their goals yet. */
+const DEFAULT_GOALS: UserGoal[] = [
+  { type: "createdQuizzes", label: "Create 12 quizzes", target: 12 },
+  { type: "joinedQuizzes", label: "Join 30 quizzes", target: 30 },
+  { type: "dayStreak", label: "20-day streak", target: 20 },
+];
+
+/** Best-effort coercion of the JSON field into a typed goals array. */
+function readGoals(raw: unknown): UserGoal[] {
+  if (!Array.isArray(raw)) return DEFAULT_GOALS;
+  const seen = new Set<GoalType>();
+  const out: UserGoal[] = [];
+  for (const item of raw) {
+    if (
+      item &&
+      typeof item === "object" &&
+      typeof (item as { type?: unknown }).type === "string" &&
+      typeof (item as { label?: unknown }).label === "string" &&
+      typeof (item as { target?: unknown }).target === "number"
+    ) {
+      const t = (item as { type: string }).type as GoalType;
+      if ((goalTypes as readonly string[]).includes(t) && !seen.has(t)) {
+        out.push({
+          type: t,
+          label: (item as { label: string }).label,
+          target: (item as { target: number }).target,
+        });
+        seen.add(t);
+      }
+    }
+  }
+  // Fill missing types with their defaults so the dashboard always renders 3 goals.
+  for (const def of DEFAULT_GOALS) {
+    if (!seen.has(def.type)) out.push(def);
+  }
+  return out;
+}
 
 export const UserService = {
   async getProfile(userId: string) {
@@ -43,7 +88,8 @@ export const UserService = {
 
   async getDashboard(userId: string) {
     const now = new Date();
-    const [quizzes, parts] = await Promise.all([
+    const [user, quizzes, parts] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId }, select: { goals: true } }),
       prisma.quiz.findMany({ where: { creatorId: userId }, select: { subject: true, createdAt: true } }),
       prisma.participant.findMany({
         where: { userId },
@@ -54,6 +100,7 @@ export const UserService = {
         },
       }),
     ]);
+    if (!user) throw ApiError.notFound("User not found");
 
     const created = quizzes.length;
     const joined = parts.length;
@@ -116,11 +163,22 @@ export const UserService = {
     const pct = (cur: number, prev: number) =>
       prev === 0 ? (cur > 0 ? "+100%" : "0%") : `${cur - prev >= 0 ? "+" : ""}${Math.round(((cur - prev) / prev) * 100)}%`;
 
-    const goals = [
-      { label: "Create 12 quizzes", text: `${createdThisMonth}/12`, value: Math.min(100, Math.round((createdThisMonth / 12) * 100)) },
-      { label: "Join 30 quizzes", text: `${joinedThisMonth}/30`, value: Math.min(100, Math.round((joinedThisMonth / 30) * 100)) },
-      { label: "20-day streak", text: `${dayStreak}/20`, value: Math.min(100, Math.round((dayStreak / 20) * 100)) },
-    ];
+    const goalSignals: Record<GoalType, number> = {
+      createdQuizzes: createdThisMonth,
+      joinedQuizzes: joinedThisMonth,
+      dayStreak,
+    };
+    const userGoals = readGoals(user.goals);
+    const goals = userGoals.map((g) => {
+      const cur = goalSignals[g.type];
+      return {
+        type: g.type,
+        label: g.label,
+        target: g.target,
+        text: `${cur}/${g.target}`,
+        value: Math.min(100, Math.round((cur / Math.max(1, g.target)) * 100)),
+      };
+    });
 
     return {
       stats: { created, joined, avgScore, dayStreak },
@@ -129,5 +187,21 @@ export const UserService = {
       categories,
       goals,
     };
+  },
+
+  /** Read the user's customisable goals, falling back to defaults if unset. */
+  async getGoals(userId: string): Promise<UserGoal[]> {
+    const u = await prisma.user.findUnique({ where: { id: userId }, select: { goals: true } });
+    if (!u) throw ApiError.notFound("User not found");
+    return readGoals(u.goals);
+  },
+
+  /** Replace the user's goals. Missing types are filled with defaults on read. */
+  async updateGoals(userId: string, input: UpdateGoalsInput): Promise<UserGoal[]> {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { goals: input.goals },
+    });
+    return readGoals(input.goals);
   },
 };

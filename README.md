@@ -9,8 +9,6 @@ A full-stack TypeScript application that combines live quiz competitions with as
 [![Node.js](https://img.shields.io/badge/Node.js-20+-339933.svg)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> 📖 **For detailed technical deep-dive, architecture decisions, and problem-solving approaches, see [DEVELOPMENT_JOURNAL.md](DEVELOPMENT_JOURNAL.md)**
-
 ---
 
 ## ✨ Features

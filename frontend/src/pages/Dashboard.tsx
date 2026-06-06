@@ -376,7 +376,11 @@ export default function Dashboard() {
                       </span>
                     </td>
                     <td className="py-3">
-                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs capitalize">{h.status}</span>
+                      {h.creatorId === user?.id ? (
+                        <span className="rounded-full bg-[#2b7fff]/10 px-2 py-0.5 text-xs font-medium text-[#2b7fff]">Created</span>
+                      ) : (
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">Joined</span>
+                      )}
                     </td>
                     <td className="py-3 font-semibold text-[#2b7fff]">{h.score}</td>
                     <td className="py-3 text-[#71717b]">

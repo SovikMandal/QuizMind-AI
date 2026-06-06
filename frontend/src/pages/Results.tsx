@@ -17,10 +17,11 @@ import {
 import { api, apiError } from "@/lib/api";
 import { Button, Card, Badge, cn } from "@/components/ui";
 import { LoadingScreen } from "@/components/LoadingScreen";
+import { useAuth } from "@/stores/auth";
 
 interface ResultsData {
   quiz: { title: string; subject: string | null; totalPoints: number };
-  personal: { score: number; rank: number | null; accuracyPct: number } | null;
+  personal: { score: number; rank: number | null; accuracyPct: number; status: "completed" | "in_progress" } | null;
   breakdown: {
     questionText: string;
     submittedAnswer: string | null;
@@ -29,12 +30,13 @@ interface ResultsData {
     pointsEarned: number;
     options?: { id: string; text: string; isCorrect?: boolean }[] | null;
   }[];
-  leaderboard: { rank: number; username: string; score: number }[];
+  leaderboard: { rank: number | null; username: string; score: number; status: "completed" | "in_progress" }[];
 }
 
 export default function Results() {
   const { sessionId = "" } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [data, setData] = useState<ResultsData | null>(null);
   const [error, setError] = useState("");
 
@@ -115,29 +117,51 @@ export default function Results() {
         </Card>
       </div>
 
-      {/* Leaderboard */}
-      <div className="mb-8">
-        <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold"><Trophy className="size-5 text-[#2b7fff]" /> Leaderboard</h2>
-        <div className="flex flex-col gap-3">
-          {data.leaderboard.map((e) => (
-            <Card
-              key={e.rank}
-              className={cn("flex items-center justify-between p-4", e.rank === 1 && "border-[#2b7fff]/30 bg-[#2b7fff]/5")}
-            >
-              <div className="flex items-center gap-3">
-                <div className={cn("flex size-9 items-center justify-center rounded-full", e.rank === 1 ? "bg-amber-400 text-white" : "bg-zinc-100 text-zinc-600")}>
-                  {e.rank === 1 ? <Trophy className="size-4" /> : <span className="text-sm font-bold">{e.rank}</span>}
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-semibold">{e.username}</span>
-                  <span className="text-xs text-[#71717b]">Rank #{e.rank}</span>
-                </div>
+      {/* Leaderboard — current user only */}
+      {data.personal && (
+        <div className="mb-8">
+          <h2 className="mb-4 flex items-center gap-2 text-xl font-semibold"><Trophy className="size-5 text-[#2b7fff]" /> Your standing</h2>
+          <Card
+            className={cn(
+              "flex items-center justify-between p-4",
+              data.personal.rank === 1 && "border-[#2b7fff]/30 bg-[#2b7fff]/5"
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={cn(
+                  "flex size-9 items-center justify-center rounded-full",
+                  data.personal.rank === 1
+                    ? "bg-amber-400 text-white"
+                    : data.personal.rank == null
+                      ? "bg-zinc-50 text-zinc-400"
+                      : "bg-zinc-100 text-zinc-600"
+                )}
+              >
+                {data.personal.rank === 1 ? (
+                  <Trophy className="size-4" />
+                ) : (
+                  <span className="text-sm font-bold">{data.personal.rank ?? "—"}</span>
+                )}
               </div>
-              <span className="text-xl font-bold text-[#2b7fff]">{e.score} pts</span>
-            </Card>
-          ))}
+              <div className="flex flex-col">
+                <span className="flex items-center gap-2 font-semibold">
+                  {user?.displayName ?? user?.username}
+                  {data.personal.status === "in_progress" && (
+                    <Badge className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
+                      In progress
+                    </Badge>
+                  )}
+                </span>
+                <span className="text-xs text-[#71717b]">
+                  {data.personal.rank == null ? "Not yet ranked" : `Rank #${data.personal.rank}`}
+                </span>
+              </div>
+            </div>
+            <span className="text-xl font-bold text-[#2b7fff]">{data.personal.score} pts</span>
+          </Card>
         </div>
-      </div>
+      )}
 
       {/* Your answers */}
       {data.breakdown.length > 0 && (

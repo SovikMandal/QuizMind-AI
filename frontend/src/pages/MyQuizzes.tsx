@@ -201,7 +201,7 @@ export default function MyQuizzes() {
                     <Button
                       variant="outline"
                       className="flex-1"
-                      onClick={() => navigate(`/analytics/${q.myLatestSessionId}`)}
+                      onClick={() => navigate(`/results/${q.myLatestSessionId}`)}
                     >
                       <BarChart3 className="size-4" /> View results
                     </Button>

@@ -59,21 +59,39 @@ export const AnalyticsService = {
       }));
     }
 
+    // Rank only completed attempts (in-progress have no final score). Ties on
+    // score share the same rank ("competition" ranking: 1, 2, 2, 4).
+    const completed = participants.filter((p) => p.completedAt);
+    const rankByParticipant = new Map<string, number>();
+    let prevScore: number | null = null;
+    let prevRank = 0;
+    completed.forEach((p, i) => {
+      const r = prevScore !== null && p.score === prevScore ? prevRank : i + 1;
+      rankByParticipant.set(p.id, r);
+      prevRank = r;
+      prevScore = p.score;
+    });
+
     const total = session.quiz.totalPoints || 1;
     return {
       quiz: { title: session.quiz.title, subject: session.quiz.subject, totalPoints: session.quiz.totalPoints },
       personal: mine
         ? {
             score: mine.score,
-            rank: mine.rank ?? participants.findIndex((p) => p.userId === userId) + 1,
+            rank: rankByParticipant.get(mine.id) ?? null,
             accuracyPct: Math.round((mine.score / total) * 100),
+            status: mine.completedAt ? "completed" : "in_progress",
           }
         : null,
       breakdown,
-      leaderboard: participants.map((p, i) => ({
-        rank: p.rank ?? i + 1,
+      // All participants appear, completed first (highest score wins, ties on
+      // time as a display tiebreaker only). In-progress entries have a null
+      // rank since they haven't finished.
+      leaderboard: participants.map((p) => ({
+        rank: rankByParticipant.get(p.id) ?? null,
         username: name(p),
         score: p.score,
+        status: p.completedAt ? "completed" : "in_progress",
       })),
     };
   },

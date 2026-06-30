@@ -6,8 +6,13 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled (PgBouncer) connection used at runtime — resilient to Neon's
+  // compute auto-suspend. Use the "-pooler" host with `pgbouncer=true`.
+  url       = env("DATABASE_URL")
+  // Direct (non-pooled) connection used for migrations, which PgBouncer's
+  // transaction mode can't run. Falls back to DATABASE_URL if unset.
+  directUrl = env("DIRECT_URL")
 }
 
 // ── Enums ────────────────────────────────────────────────

@@ -7,6 +7,9 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
 
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
+  // Direct (non-pooled) Neon endpoint, used by Prisma for migrations only.
+  // Optional at runtime — PrismaClient queries use the pooled DATABASE_URL.
+  DIRECT_URL: z.string().optional(),
   REDIS_URL: z.string().min(1, "REDIS_URL is required"),
 
   JWT_ACCESS_SECRET: z.string().min(1, "JWT_ACCESS_SECRET is required"),

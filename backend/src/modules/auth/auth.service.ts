@@ -37,7 +37,7 @@ function emailCode(email: string, code: string, name: string) {
   if (!isProd) logger.info(`Email verification code for ${email}: ${code}`);
 }
 
-async function issueTokens(userId: string) {
+export async function issueTokens(userId: string) {
   const accessToken = signAccessToken(userId);
   const { token: refreshToken, jti } = signRefreshToken(userId);
   await redis.set(refreshKey(userId, jti), "1", "EX", REFRESH_TTL_SECONDS);

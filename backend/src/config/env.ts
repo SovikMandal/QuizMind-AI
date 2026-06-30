@@ -38,6 +38,22 @@ const envSchema = z.object({
 
   SMTP_PASS: z.string().optional(), // Brevo API key
   MAIL_FROM: z.string().default("noreply@quizmindai.live"),
+
+  // ── OAuth (Google + GitHub) ──────────────────────────────
+  // All optional: a provider is "enabled" only when its id + secret are set.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z
+    .string()
+    .url()
+    .default("http://localhost:4000/api/v1/auth/google/callback"),
+
+  GITHUB_CLIENT_ID: z.string().optional(),
+  GITHUB_CLIENT_SECRET: z.string().optional(),
+  GITHUB_REDIRECT_URI: z
+    .string()
+    .url()
+    .default("http://localhost:4000/api/v1/auth/github/callback"),
 });
 
 const parsed = envSchema.safeParse(process.env);

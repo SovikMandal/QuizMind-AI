@@ -1,5 +1,5 @@
-import { FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { FormEvent, useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Brain,
   Sparkles,
@@ -13,7 +13,7 @@ import {
   LogIn,
 } from "lucide-react";
 import { useAuth } from "@/stores/auth";
-import { apiError } from "@/lib/api";
+import { apiError, startOAuth } from "@/lib/api";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui";
 import { LoadingScreen } from "@/components/LoadingScreen";
@@ -25,10 +25,27 @@ const features = ["AI question generation", "Live & async quiz modes", "Real-tim
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Surface OAuth failures (the backend redirects here with ?error=...).
+  useEffect(() => {
+    const error = searchParams.get("error");
+    if (!error) return;
+    const messages: Record<string, string> = {
+      oauth_failed: "Sign-in with that provider failed. Please try again.",
+      oauth_denied: "You cancelled the sign-in.",
+      oauth_state_mismatch: "Sign-in session expired. Please try again.",
+      oauth_missing_code: "Sign-in could not be completed. Please try again.",
+      oauth_unknown_provider: "Unsupported sign-in provider.",
+    };
+    toast.error(messages[error] ?? "Sign-in failed. Please try again.");
+    searchParams.delete("error");
+    setSearchParams(searchParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -165,8 +182,8 @@ export default function Login() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <Button type="button" variant="outline" className="gap-2">Google</Button>
-                <Button type="button" variant="outline" className="gap-2">GitHub</Button>
+                <Button type="button" variant="outline" className="gap-2" onClick={() => startOAuth("google")}>Google</Button>
+                <Button type="button" variant="outline" className="gap-2" onClick={() => startOAuth("github")}>GitHub</Button>
               </div>
             </form>
 

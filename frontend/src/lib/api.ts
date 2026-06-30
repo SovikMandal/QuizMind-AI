@@ -16,6 +16,15 @@ export const tokenStore = {
   clear: () => localStorage.removeItem(TOKEN_KEY),
 };
 
+/**
+ * Kicks off an OAuth login. This MUST be a full-page navigation (not an
+ * axios/XHR call) because the browser has to follow redirects to the
+ * provider's consent screen and back to our backend callback.
+ */
+export function startOAuth(provider: "google" | "github"): void {
+  window.location.href = `${API_BASE_URL}/auth/${provider}`;
+}
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true, // send the httpOnly refresh cookie

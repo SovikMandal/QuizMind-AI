@@ -31,6 +31,7 @@ const Profile = lazy(() => import("@/pages/Profile"));
 const Notifications = lazy(() => import("@/pages/Notifications"));
 const Pricing = lazy(() => import("@/pages/Pricing"));
 const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
+const OAuthCallback = lazy(() => import("@/pages/OAuthCallback"));
 
 function Spinner() {
   return (
@@ -66,6 +67,7 @@ export default function App() {
           <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
           <Route path="/signup" element={<PublicOnlyRoute><Signup /></PublicOnlyRoute>} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/oauth/callback" element={<OAuthCallback />} />
           <Route path="/dashboard" element={protect(<Suspense fallback={<DashboardSkeleton />}><Dashboard /></Suspense>)} />
           <Route path="/quiz/create" element={protect(<CreateQuiz />)} />
           <Route path="/discover" element={protect(<Suspense fallback={<DiscoverSkeleton />}><Discover /></Suspense>)} />

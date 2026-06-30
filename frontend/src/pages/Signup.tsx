@@ -16,7 +16,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useAuth } from "@/stores/auth";
-import { api, apiError, tokenStore } from "@/lib/api";
+import { api, apiError, tokenStore, startOAuth } from "@/lib/api";
 import { EmailVerifyModal } from "@/components/EmailVerifyModal";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui";
@@ -204,8 +204,8 @@ export default function Signup() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <Button type="button" variant="outline" className="gap-2">Google</Button>
-                <Button type="button" variant="outline" className="gap-2">GitHub</Button>
+                <Button type="button" variant="outline" className="gap-2" onClick={() => startOAuth("google")}>Google</Button>
+                <Button type="button" variant="outline" className="gap-2" onClick={() => startOAuth("github")}>GitHub</Button>
               </div>
             </form>
 

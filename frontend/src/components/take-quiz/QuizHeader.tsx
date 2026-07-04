@@ -79,7 +79,7 @@ export function QuizHeader({
           <button
             onClick={onSubmit}
             disabled={!canSubmit}
-            className="flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-50 disabled:shadow-none cursor-pointer"
+            className="flex items-center gap-2 rounded-lg bg-[#2b7fff] px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:bg-[#1a6ef0] active:scale-[0.98] disabled:opacity-50 disabled:shadow-none cursor-pointer"
           >
             <Send className="size-4" /> {submitting ? "Submitting..." : "Submit"}
           </button>

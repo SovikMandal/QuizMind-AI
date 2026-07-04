@@ -138,14 +138,14 @@ export function QuestionPanel({
           </Button>
 
           {idx < total - 1 ? (
-            <Button onClick={onNext} className="rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white">
+            <Button onClick={onNext} className="rounded-lg">
               Next <ChevronRight className="size-4" />
             </Button>
           ) : (
             <Button
               onClick={onSubmit}
               disabled={locked || submitting || answeredCount === 0}
-              className="rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white"
+              className="rounded-lg bg-green-600 hover:bg-green-700 text-white"
             >
               <Send className="size-4" /> Submit
             </Button>

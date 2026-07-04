@@ -54,7 +54,7 @@ export default function Results() {
   const n = data.leaderboard.length;
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-8">
+    <main className="mx-auto min-h-screen max-w-6xl px-6 py-8">
       {/* Hero */}
       <div className="relative mb-8 overflow-hidden rounded-3xl border border-zinc-200 bg-[#2b7fff]/5 p-8">
         <div className="absolute -right-12 -top-12 size-48 rounded-full bg-[#2b7fff]/10" />

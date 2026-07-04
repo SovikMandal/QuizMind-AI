@@ -15,6 +15,16 @@ import { QuestionSidebar } from "@/components/take-quiz/QuestionSidebar";
 import { QuestionPanel } from "@/components/take-quiz/QuestionPanel";
 import { SubmitConfirmModal } from "@/components/take-quiz/SubmitConfirmModal";
 
+/** Restore any global styles the quiz page mutated (navbar, scroll lock). */
+function restorePageStyles() {
+  const navbar = document.querySelector("nav");
+  if (navbar) (navbar as HTMLElement).style.display = "";
+  document.documentElement.style.overflow = "";
+  document.body.style.overflow = "";
+  document.documentElement.classList.remove("hide-scrollbar");
+  document.body.classList.remove("hide-scrollbar");
+}
+
 export default function TakeQuiz() {
   const { sessionId = "" } = useParams();
   const navigate = useNavigate();
@@ -29,11 +39,7 @@ export default function TakeQuiz() {
     document.documentElement.classList.add("hide-scrollbar");
     document.body.classList.add("hide-scrollbar");
     return () => {
-      if (navbar) (navbar as HTMLElement).style.display = "";
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-      document.documentElement.classList.remove("hide-scrollbar");
-      document.body.classList.remove("hide-scrollbar");
+      restorePageStyles();
     };
   }, []);
 
@@ -91,6 +97,7 @@ export default function TakeQuiz() {
           timeTaken: Math.round(timeRef.current[q.id] ?? 0),
         })),
       });
+      restorePageStyles();
       navigate(`/results/${sessionId}`);
     } catch (err) {
       toast.error(apiError(err, "Could not submit your answers"));

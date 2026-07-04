@@ -559,10 +559,10 @@ export default function TakeQuiz() {
         </aside>
 
         {/* Right: Question Content */}
-        <main className="flex-1 overflow-y-auto scrollbar-hide p-6">
-          <div className="mx-auto max-w-6xl flex flex-col h-full">
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex flex-col h-full">
             {/* Single Card covering everything */}
-            <Card className="border-0 shadow-md flex-1 flex flex-col overflow-hidden">
+            <Card className="border-0 shadow-none rounded-none border-l-0 flex-1 flex flex-col overflow-hidden">
               {/* Question Header */}
               <div className="shrink-0 flex items-center justify-between px-6 py-3 border-b border-zinc-200">
                 <div className="flex items-center gap-3">
@@ -692,40 +692,6 @@ export default function TakeQuiz() {
               </div>
             </Card>
 
-            {/* Presence Indicator */}
-            <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-5 py-3.5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <Users className="size-4 text-[#2b7fff]" />
-                <p className="text-sm text-zinc-600">
-                  <span className="font-semibold text-zinc-900">{presence.count}</span>{" "}
-                  {presence.count === 1 ? "student" : "students"} attempting now
-                </p>
-              </div>
-              {presence.users.length > 0 && (
-                <div className="flex -space-x-2">
-                  {presence.users.slice(0, 4).map((u, i) =>
-                    u.avatarUrl ? (
-                      <img key={u.userId} src={u.avatarUrl} alt="" className="size-7 rounded-full border-2 border-white object-cover" />
-                    ) : (
-                      <span
-                        key={u.userId}
-                        className={cn(
-                          "flex size-7 items-center justify-center rounded-full border-2 border-white text-[10px] font-bold text-white",
-                          avatarColors[i % avatarColors.length]
-                        )}
-                      >
-                        {initials(u.name)}
-                      </span>
-                    )
-                  )}
-                  {presence.count > 4 && (
-                    <span className="flex size-7 items-center justify-center rounded-full border-2 border-white bg-zinc-200 text-[10px] font-bold text-zinc-600">
-                      +{presence.count - 4}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
         </main>
       </div>

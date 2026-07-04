@@ -1,8 +1,9 @@
-import { useEffect, lazy, Suspense } from "react";
+import { useEffect, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useAuth } from "@/stores/auth";
 import { warmUpApi } from "@/lib/api";
+import { lazyWithReload } from "@/lib/lazyWithReload";
 import { Navbar } from "@/components/Navbar";
 import { ProtectedRoute, PublicOnlyRoute } from "@/components/ProtectedRoute";
 import { LoadingScreen } from "@/components/LoadingScreen";
@@ -13,25 +14,25 @@ import { MyQuizzesSkeleton } from "@/components/MyQuizzesSkeleton";
 import { TakeQuizSkeleton } from "@/components/TakeQuizSkeleton";
 import { NotificationsSkeleton } from "@/components/NotificationsSkeleton";
 
-const Landing = lazy(() => import("@/pages/Landing"));
-const Login = lazy(() => import("@/pages/Login"));
-const Signup = lazy(() => import("@/pages/Signup"));
-const Dashboard = lazy(() => import("@/pages/Dashboard"));
-const CreateQuiz = lazy(() => import("@/pages/CreateQuiz"));
-const Discover = lazy(() => import("@/pages/Discover"));
-const MyQuizzes = lazy(() => import("@/pages/MyQuizzes"));
-const QuizList = lazy(() => import("@/pages/QuizList"));
-const JoinQuiz = lazy(() => import("@/pages/JoinQuiz"));
-const PlayQuiz = lazy(() => import("@/pages/PlayQuiz"));
-const TakeQuiz = lazy(() => import("@/pages/TakeQuiz"));
-const Results = lazy(() => import("@/pages/Results"));
-const ResultsRedirect = lazy(() => import("@/pages/ResultsRedirect"));
-const Analytics = lazy(() => import("@/pages/Analytics"));
-const Profile = lazy(() => import("@/pages/Profile"));
-const Notifications = lazy(() => import("@/pages/Notifications"));
-const Pricing = lazy(() => import("@/pages/Pricing"));
-const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
-const OAuthCallback = lazy(() => import("@/pages/OAuthCallback"));
+const Landing = lazyWithReload(() => import("@/pages/Landing"));
+const Login = lazyWithReload(() => import("@/pages/Login"));
+const Signup = lazyWithReload(() => import("@/pages/Signup"));
+const Dashboard = lazyWithReload(() => import("@/pages/Dashboard"));
+const CreateQuiz = lazyWithReload(() => import("@/pages/CreateQuiz"));
+const Discover = lazyWithReload(() => import("@/pages/Discover"));
+const MyQuizzes = lazyWithReload(() => import("@/pages/MyQuizzes"));
+const QuizList = lazyWithReload(() => import("@/pages/QuizList"));
+const JoinQuiz = lazyWithReload(() => import("@/pages/JoinQuiz"));
+const PlayQuiz = lazyWithReload(() => import("@/pages/PlayQuiz"));
+const TakeQuiz = lazyWithReload(() => import("@/pages/TakeQuiz"));
+const Results = lazyWithReload(() => import("@/pages/Results"));
+const ResultsRedirect = lazyWithReload(() => import("@/pages/ResultsRedirect"));
+const Analytics = lazyWithReload(() => import("@/pages/Analytics"));
+const Profile = lazyWithReload(() => import("@/pages/Profile"));
+const Notifications = lazyWithReload(() => import("@/pages/Notifications"));
+const Pricing = lazyWithReload(() => import("@/pages/Pricing"));
+const ForgotPassword = lazyWithReload(() => import("@/pages/ForgotPassword"));
+const OAuthCallback = lazyWithReload(() => import("@/pages/OAuthCallback"));
 
 function Spinner() {
   return (

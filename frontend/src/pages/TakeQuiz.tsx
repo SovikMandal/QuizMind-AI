@@ -560,9 +560,9 @@ export default function TakeQuiz() {
 
         {/* Right: Question Content */}
         <main className="flex-1 overflow-y-auto scrollbar-hide p-6">
-          <div className="mx-auto max-w-6xl flex flex-col gap-5">
+          <div className="mx-auto max-w-6xl flex flex-col h-full gap-4">
             {/* Question Header */}
-            <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-6 py-3 shadow-sm">
+            <div className="shrink-0 flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-6 py-3 shadow-sm">
               <div className="flex items-center gap-3">
                 <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2b7fff] to-[#1a6ef0] text-sm font-bold text-white shadow-sm">
                   {idx + 1}
@@ -586,8 +586,8 @@ export default function TakeQuiz() {
               </span>
             </div>
 
-            {/* Two Column Layout: Question | Options */}
-            <div className="grid gap-5 lg:grid-cols-2">
+            {/* Two Column Layout: Question | Options — fills remaining space */}
+            <div className="grid gap-4 lg:grid-cols-2 flex-1 min-h-0">
               {/* Column 1: Question */}
               <Card className="border-0 shadow-md p-6 lg:p-8 flex flex-col">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-4">Question</h3>
@@ -602,7 +602,7 @@ export default function TakeQuiz() {
                   {q.options && q.options.length ? "Choose your answer" : "Your answer"}
                 </h3>
                 {q.options && q.options.length ? (
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 flex-1">
                     {q.options.map((o, i) => {
                       const selected = answers[q.id] === o.id;
                       return (
@@ -645,14 +645,14 @@ export default function TakeQuiz() {
                     onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
                     placeholder="Type your answer here..."
                     rows={4}
-                    className="w-full rounded-xl border-2 border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2b7fff] focus:ring-2 focus:ring-[#2b7fff]/10 resize-none"
+                    className="w-full flex-1 rounded-xl border-2 border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2b7fff] focus:ring-2 focus:ring-[#2b7fff]/10 resize-none"
                   />
                 )}
               </Card>
             </div>
 
             {/* Navigation Bar */}
-            <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-6 py-4 shadow-sm">
+            <div className="shrink-0 flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-6 py-3 shadow-sm">
               <Button
                 variant="outline"
                 disabled={idx === 0}

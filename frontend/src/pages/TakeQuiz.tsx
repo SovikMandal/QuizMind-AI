@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Flag,
   Send,
-  Wifi,
   Users,
   Maximize,
   AlertTriangle,
@@ -448,10 +447,10 @@ export default function TakeQuiz() {
   const progressPercent = total ? (answeredCount / total) * 100 : 0;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-[#f8f9fb] overflow-y-auto scrollbar-hide">
-      {/* Top Bar - Professional exam header */}
-      <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white shadow-sm">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-3">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-[#f8f9fb] overflow-hidden scrollbar-hide">
+      {/* ═══ TOP BAR ═══ */}
+      <header className="shrink-0 border-b border-zinc-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between px-6 py-3">
           {/* Left: Quiz info */}
           <div className="flex items-center gap-4">
             <div className="flex size-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#2b7fff] to-[#1a6ef0]">
@@ -476,7 +475,7 @@ export default function TakeQuiz() {
             </div>
           </div>
 
-          {/* Right: Status */}
+          {/* Right: Status + Submit Button */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 rounded-lg bg-zinc-50 px-3 py-2">
               <div className={cn("size-2 rounded-full", connected ? "bg-green-500 animate-pulse" : "bg-zinc-300")} />
@@ -494,31 +493,74 @@ export default function TakeQuiz() {
                 <span className="text-xs font-semibold text-amber-700">{violations}/3</span>
               </div>
             )}
+            <button
+              onClick={() => setConfirmSubmit(true)}
+              disabled={submitting || answeredCount === 0 || locked}
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-green-600 to-green-700 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-green-600/20 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:shadow-none"
+            >
+              <Send className="size-4" /> {submitting ? "Submitting..." : "Submit"}
+            </button>
           </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className="h-1 w-full bg-zinc-100">
-          <div
-            className="h-1 bg-gradient-to-r from-[#2b7fff] to-[#1a6ef0] transition-all duration-500"
-            style={{ width: `${progressPercent}%` }}
-          />
         </div>
       </header>
 
+      {/* ═══ STATS BAR + PROGRESS ═══ */}
+      <div className="shrink-0 border-b border-zinc-200 bg-white px-6 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <span className="size-2.5 rounded-full bg-[#2b7fff]" />
+              <span className="text-xs font-medium text-zinc-600">Answered: <span className="font-bold text-zinc-900">{answeredCount}</span></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="size-2.5 rounded-full bg-amber-400" />
+              <span className="text-xs font-medium text-zinc-600">Flagged: <span className="font-bold text-zinc-900">{flaggedCount}</span></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="size-2.5 rounded-full bg-zinc-300" />
+              <span className="text-xs font-medium text-zinc-600">Unanswered: <span className="font-bold text-zinc-900">{total - answeredCount}</span></span>
+            </div>
+          </div>
+          <span className="text-xs font-bold text-[#2b7fff]">{answeredCount}/{total} completed</span>
+        </div>
+        {/* Progress line bar */}
+        <div className="mt-2 h-1.5 w-full rounded-full bg-zinc-100">
+          <div
+            className="h-1.5 rounded-full bg-gradient-to-r from-[#2b7fff] to-[#1a6ef0] transition-all duration-500"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      </div>
+
       {locked && (
-        <div className="border-b border-blue-100 bg-blue-50 px-6 py-2.5 text-center">
+        <div className="shrink-0 border-b border-blue-100 bg-blue-50 px-6 py-2.5 text-center">
           <p className="text-sm font-medium text-blue-700">
             ✓ You've already completed this quiz — viewing submitted answers (read-only)
           </p>
         </div>
       )}
 
-      {/* Main Content */}
-      <main className="mx-auto max-w-[1400px] px-6 py-6">
-        <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-          {/* Question Area */}
-          <div className="flex flex-col gap-5">
+      {/* ═══ MAIN CONTENT ═══ */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: Question List (single column, one per row) */}
+        <aside className="hidden lg:flex w-[72px] shrink-0 flex-col border-r border-zinc-200 bg-white overflow-y-auto scrollbar-hide py-3">
+          {questions.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setIdx(i)}
+              className={cn(
+                "mx-auto mb-1 flex h-9 w-14 items-center justify-center rounded-lg text-xs font-semibold transition-all",
+                chipClass(i)
+              )}
+            >
+              Q{i + 1}
+            </button>
+          ))}
+        </aside>
+
+        {/* Right: Question Content */}
+        <main className="flex-1 overflow-y-auto scrollbar-hide p-6">
+          <div className="mx-auto max-w-3xl flex flex-col gap-5">
             {/* Question Card */}
             <Card className="overflow-hidden border-0 shadow-md">
               {/* Question Header */}
@@ -676,107 +718,8 @@ export default function TakeQuiz() {
               )}
             </div>
           </div>
-
-          {/* Sidebar */}
-          <div className="flex flex-col gap-5">
-            {/* Progress Panel */}
-            <Card className="sticky top-[88px] border-0 p-6 shadow-md">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-500">Progress</h3>
-                <span className="rounded-full bg-[#2b7fff]/10 px-3 py-1 text-xs font-bold text-[#2b7fff]">
-                  {answeredCount}/{total}
-                </span>
-              </div>
-
-              {/* Circular Progress */}
-              <div className="mt-4 flex items-center justify-center">
-                <div className="relative">
-                  <svg className="size-24 -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="#f1f1f1" strokeWidth="8" />
-                    <circle
-                      cx="50" cy="50" r="42" fill="none" stroke="#2b7fff" strokeWidth="8"
-                      strokeDasharray={`${2 * Math.PI * 42}`}
-                      strokeDashoffset={`${2 * Math.PI * 42 * (1 - progressPercent / 100)}`}
-                      strokeLinecap="round"
-                      className="transition-all duration-500"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-lg font-bold text-zinc-900">{Math.round(progressPercent)}%</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Question Grid */}
-              <div className="mt-5">
-                <p className="mb-2.5 text-xs font-medium text-zinc-400">Question Map</p>
-                <div className="grid grid-cols-6 gap-1.5">
-                  {questions.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setIdx(i)}
-                      className={cn(
-                        "flex aspect-square items-center justify-center rounded-lg text-[11px] font-semibold transition-all",
-                        chipClass(i)
-                      )}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Legend */}
-              <div className="mt-5 space-y-2 border-t border-zinc-100 pt-4">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-xs text-zinc-500">
-                    <span className="size-3 rounded bg-[#2b7fff]" /> Answered
-                  </span>
-                  <span className="text-xs font-bold text-zinc-700">{answeredCount}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-xs text-zinc-500">
-                    <span className="size-3 rounded border border-amber-300 bg-amber-100" /> Flagged
-                  </span>
-                  <span className="text-xs font-bold text-zinc-700">{flaggedCount}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-xs text-zinc-500">
-                    <span className="size-3 rounded bg-zinc-100" /> Unanswered
-                  </span>
-                  <span className="text-xs font-bold text-zinc-700">{total - answeredCount}</span>
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                onClick={() => setConfirmSubmit(true)}
-                disabled={submitting || answeredCount === 0 || locked}
-                className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-green-700 py-3.5 text-sm font-bold text-white shadow-lg shadow-green-600/20 transition-all hover:shadow-xl disabled:opacity-50 disabled:shadow-none"
-              >
-                <Send className="size-4" /> {submitting ? "Submitting..." : "Submit Quiz"}
-              </button>
-              <p className="mt-2 text-center text-[11px] text-zinc-400">
-                Review flagged questions before submitting
-              </p>
-            </Card>
-
-            {/* Connection Status */}
-            <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-              <div className={cn(
-                "flex size-9 items-center justify-center rounded-lg",
-                connected ? "bg-green-50" : "bg-zinc-100"
-              )}>
-                <Wifi className={cn("size-4", connected ? "text-green-600" : "text-zinc-400")} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-zinc-900">{connected ? "Connected" : "Connecting…"}</p>
-                <p className="text-[11px] text-zinc-400">{isLive ? "Live session" : "Async mode"} • Proctored</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
+        </main>
+      </div>
 
       {/* Submit Confirmation Modal */}
       {confirmSubmit && (

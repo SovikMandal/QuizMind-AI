@@ -571,13 +571,13 @@ export default function TakeQuiz() {
                     <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#2b7fff] to-[#1a6ef0] text-xs font-bold text-white">
                       {idx + 1}
                     </span>
-                    <Badge className="bg-white border border-zinc-200 text-zinc-700 shadow-sm">{typeLabel[q.questionType] ?? q.questionType}</Badge>
+                    <Badge className="bg-purple-50 border border-purple-200 text-purple-700">{typeLabel[q.questionType] ?? q.questionType}</Badge>
                     {q.difficulty && (
                       <Badge className={cn(
-                        "border shadow-sm",
-                        q.difficulty === "easy" ? "bg-green-50 border-green-200 text-green-700" :
-                        q.difficulty === "medium" ? "bg-amber-50 border-amber-200 text-amber-700" :
-                        "bg-red-50 border-red-200 text-red-700"
+                        "border",
+                        q.difficulty === "easy" ? "bg-emerald-50 border-emerald-200 text-emerald-700" :
+                        q.difficulty === "medium" ? "bg-orange-50 border-orange-200 text-orange-700" :
+                        "bg-rose-50 border-rose-200 text-rose-700"
                       )}>
                         {q.difficulty}
                       </Badge>

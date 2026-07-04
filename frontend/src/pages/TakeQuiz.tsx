@@ -112,24 +112,36 @@ function renderQuestionText(text: string, imageUrl?: string | null) {
 
   segments.forEach((seg, i) => {
     if (seg.type === "code") {
-      // Format single-line code: add line breaks after { ; } for readability
-      let code = seg.content;
-      if (!code.includes("\n") && code.length > 60) {
-        code = code
-          .replace(/;\s*/g, ";\n")
-          .replace(/\{\s*/g, "{\n  ")
-          .replace(/\}\s*/g, "\n}\n")
-          .replace(/\n\s*\n/g, "\n")
-          .trim();
+      // Diagram blocks: render with strict whitespace preservation
+      if (seg.lang === "diagram") {
+        elements.push(
+          <div key={`diagram-${i}`} className="my-3 rounded-lg bg-blue-50 border border-blue-100 p-4 overflow-x-auto">
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-blue-400">Diagram</div>
+            <pre className="text-sm font-mono leading-relaxed text-blue-900 whitespace-pre">
+              {seg.content}
+            </pre>
+          </div>
+        );
+      } else {
+        // Code blocks: format single-line code for readability
+        let code = seg.content;
+        if (!code.includes("\n") && code.length > 60) {
+          code = code
+            .replace(/;\s*/g, ";\n")
+            .replace(/\{\s*/g, "{\n  ")
+            .replace(/\}\s*/g, "\n}\n")
+            .replace(/\n\s*\n/g, "\n")
+            .trim();
+        }
+        elements.push(
+          <div key={`code-${i}`} className="my-3 rounded-lg bg-zinc-50 border border-zinc-200 p-4 overflow-x-auto">
+            {seg.lang && <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{seg.lang}</div>}
+            <pre className="text-sm font-mono leading-relaxed text-zinc-800 whitespace-pre-wrap break-words">
+              <code>{code}</code>
+            </pre>
+          </div>
+        );
       }
-      elements.push(
-        <div key={`code-${i}`} className="my-3 rounded-lg bg-zinc-50 border border-zinc-200 p-4 overflow-x-auto">
-          {seg.lang && <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{seg.lang}</div>}
-          <pre className="text-sm font-mono leading-relaxed text-zinc-800 whitespace-pre-wrap break-words">
-            <code>{code}</code>
-          </pre>
-        </div>
-      );
     } else {
       elements.push(
         <span key={`text-${i}`}>{renderRichText(seg.content)}</span>

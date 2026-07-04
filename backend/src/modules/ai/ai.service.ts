@@ -18,7 +18,16 @@ interface AppQuestion {
 }
 
 function toAppQuestion(g: GeneratedQuestion, format: QuestionFormat): AppQuestion {
-  const base = { questionText: g.content, explanation: g.explanation, difficulty: g.difficulty };
+  // Build question text with separate sections
+  let questionText = g.content;
+  if (g.diagram) {
+    questionText += `\n\n\`\`\`diagram\n${g.diagram}\n\`\`\``;
+  }
+  if (g.code) {
+    questionText += `\n\n\`\`\`${g.codeLang || ""}\n${g.code}\n\`\`\``;
+  }
+
+  const base = { questionText, explanation: g.explanation, difficulty: g.difficulty };
 
   if (format === "short_answer") {
     return { ...base, questionType: "short_answer", correctAnswer: g.correctAnswer };

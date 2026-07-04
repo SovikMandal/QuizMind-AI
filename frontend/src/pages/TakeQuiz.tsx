@@ -201,11 +201,20 @@ function cleanFormula(latex: string): string {
     // Superscripts: x^{2} → x², common powers
     .replace(/\^\{2\}/g, "²").replace(/\^\{3\}/g, "³").replace(/\^\{n\}/g, "ⁿ")
     .replace(/\^\{-1\}/g, "⁻¹").replace(/\^\{-2\}/g, "⁻²")
+    .replace(/\^\{0\}/g, "⁰").replace(/\^\{1\}/g, "¹").replace(/\^\{4\}/g, "⁴")
+    .replace(/\^\{5\}/g, "⁵").replace(/\^\{6\}/g, "⁶").replace(/\^\{7\}/g, "⁷")
+    .replace(/\^\{8\}/g, "⁸").replace(/\^\{9\}/g, "⁹")
     .replace(/\^\{([^}]*)\}/g, "^$1")
-    .replace(/\^2/g, "²").replace(/\^3/g, "³").replace(/\^n/g, "ⁿ")
+    .replace(/\^0/g, "⁰").replace(/\^1/g, "¹").replace(/\^2/g, "²")
+    .replace(/\^3/g, "³").replace(/\^4/g, "⁴").replace(/\^5/g, "⁵")
+    .replace(/\^6/g, "⁶").replace(/\^7/g, "⁷").replace(/\^8/g, "⁸")
+    .replace(/\^9/g, "⁹").replace(/\^n/g, "ⁿ")
     // Subscripts: x_{i} → xᵢ
+    .replace(/_\{0\}/g, "₀").replace(/_\{1\}/g, "₁").replace(/_\{2\}/g, "₂")
+    .replace(/_\{3\}/g, "₃").replace(/_\{4\}/g, "₄").replace(/_\{5\}/g, "₅")
     .replace(/_\{([^}]*)\}/g, "₍$1₎")
     .replace(/_0/g, "₀").replace(/_1/g, "₁").replace(/_2/g, "₂")
+    .replace(/_3/g, "₃").replace(/_4/g, "₄").replace(/_5/g, "₅")
     // Clean up remaining LaTeX commands
     .replace(/\\text\{([^}]*)\}/g, "$1")
     .replace(/\\mathrm\{([^}]*)\}/g, "$1")
@@ -848,7 +857,7 @@ export default function TakeQuiz() {
                   {/* Question text in bordered box */}
                   <div className="rounded-xl border border-dashed border-zinc-300 p-4 mb-3">
                     <div className="text-[15px] font-medium leading-relaxed text-zinc-800">
-                      {renderQuestionText(q.questionText, q.imageUrl)}
+                      {renderQuestionText(q.questionText.includes("\\") ? cleanFormula(q.questionText) : q.questionText, q.imageUrl)}
                     </div>
                   </div>
                 </div>
@@ -886,7 +895,7 @@ export default function TakeQuiz() {
                               "text-sm font-medium transition-colors",
                               selected ? "text-[#2b7fff]" : "text-zinc-700"
                             )}>
-                              {o.text}
+                              {o.text.includes("\\") ? cleanFormula(o.text) : o.text}
                             </span>
                             {selected && <CheckCircle2 className="ml-auto size-5 text-[#2b7fff] shrink-0" />}
                           </button>

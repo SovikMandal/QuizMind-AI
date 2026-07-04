@@ -19,6 +19,8 @@ import { api, apiError } from "@/lib/api";
 import { Button, Card, Badge, cn } from "@/components/ui";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { useAuth } from "@/stores/auth";
+import { parseQuestion } from "@/components/take-quiz/utils";
+import { CodeBlock } from "@/components/take-quiz/CodeBlock";
 
 interface ResultsData {
   quiz: { title: string; subject: string | null; totalPoints: number };
@@ -176,14 +178,33 @@ export default function Results() {
             </div>
           </div>
           <div className="flex flex-col gap-4">
-            {data.breakdown.map((b, i) => (
+            {data.breakdown.map((b, i) => {
+              const pq = parseQuestion(b.questionText);
+              return (
               <Card key={i} className={cn("border-l-4 p-6", b.isCorrect ? "border-l-emerald-500" : "border-l-[#e7000b]")}>
                 <div className="flex items-start gap-3">
                   <div className={cn("flex size-6 shrink-0 items-center justify-center rounded-full", b.isCorrect ? "bg-emerald-100" : "bg-[#e7000b]/10")}>
                     {b.isCorrect ? <Check className="size-3.5 text-emerald-600" /> : <X className="size-3.5 text-[#e7000b]" />}
                   </div>
-                  <p className="font-semibold">{b.questionText}</p>
+                  <p className="font-semibold">{pq.text}</p>
                 </div>
+
+                {/* Formula / diagram / code */}
+                {(pq.formula || pq.diagram || pq.code) && (
+                  <div className="mt-3 ml-9 flex flex-col gap-3">
+                    {pq.formula && (
+                      <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-center">
+                        <p className="font-mono text-base text-blue-800">{pq.formula}</p>
+                      </div>
+                    )}
+                    {pq.diagram && (
+                      <div className="rounded-xl bg-blue-50 border border-blue-100 p-4">
+                        <pre className="text-sm font-mono leading-relaxed text-blue-900 whitespace-pre overflow-x-auto">{pq.diagram}</pre>
+                      </div>
+                    )}
+                    {pq.code && <CodeBlock code={pq.code} language={pq.codeLang} />}
+                  </div>
+                )}
                 {b.options && b.options.length ? (
                   <div className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 pl-9 sm:grid-cols-2">
                     {b.options.map((o, oi) => {
@@ -238,7 +259,8 @@ export default function Results() {
                   </div>
                 )}
               </Card>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 import React from "react";
 
-/* ─── Minimal keyword-based syntax highlighter ─── */
+/* ─── Minimal keyword-based syntax highlighter (light theme) ─── */
 function highlight(code: string, lang: string): React.ReactNode[] {
   const jsKeywords = /\b(const|let|var|function|return|if|else|for|while|of|in|new|this|class|extends|import|export|default|typeof|instanceof|true|false|null|undefined|async|await|=>)\b/g;
   const pyKeywords = /\b(def|return|if|elif|else|for|while|in|not|and|or|True|False|None|import|from|class|self|lambda|with|as|pass|break|continue|yield|print)\b/g;
@@ -18,9 +18,9 @@ function highlight(code: string, lang: string): React.ReactNode[] {
     const matches: Match[] = [];
     const patterns: { re: RegExp; cls: string }[] = [
       { re: new RegExp(comments.source, "g"), cls: "text-slate-400 italic" },
-      { re: new RegExp(strings.source, "g"), cls: "text-emerald-400" },
-      { re: new RegExp(keywords.source, "g"), cls: "text-violet-400 font-semibold" },
-      { re: new RegExp(numbers.source, "g"), cls: "text-amber-400" },
+      { re: new RegExp(strings.source, "g"), cls: "text-emerald-600" },
+      { re: new RegExp(keywords.source, "g"), cls: "text-violet-600 font-semibold" },
+      { re: new RegExp(numbers.source, "g"), cls: "text-amber-600" },
     ];
     for (const { re, cls } of patterns) {
       const r = new RegExp(re.source, "g");
@@ -52,7 +52,7 @@ function highlight(code: string, lang: string): React.ReactNode[] {
     if (idx < line.length) nodes.push(line.slice(idx));
     return (
       <div key={li} className="flex">
-        <span className="select-none w-8 shrink-0 text-right pr-4 text-slate-600 text-xs">{li + 1}</span>
+        <span className="select-none w-8 shrink-0 text-right pr-4 text-slate-300 text-xs">{li + 1}</span>
         <span>{nodes.length ? nodes : " "}</span>
       </div>
     );
@@ -66,16 +66,16 @@ const langLabel: Record<string, string> = {
 
 export function CodeBlock({ code, language }: { code: string; language: string }) {
   return (
-    <div className="rounded-xl overflow-hidden border border-slate-700/60 shadow-lg">
-      <div className="flex items-center gap-2 bg-slate-800 px-4 py-2.5 border-b border-slate-700">
+    <div className="rounded-xl overflow-hidden border border-zinc-200 shadow-sm">
+      <div className="flex items-center gap-2 bg-zinc-100 px-4 py-2.5 border-b border-zinc-200">
         <div className="flex gap-1.5">
-          <span className="size-2.5 rounded-full bg-red-500/70" />
-          <span className="size-2.5 rounded-full bg-amber-500/70" />
-          <span className="size-2.5 rounded-full bg-emerald-500/70" />
+          <span className="size-2.5 rounded-full bg-red-400" />
+          <span className="size-2.5 rounded-full bg-amber-400" />
+          <span className="size-2.5 rounded-full bg-emerald-400" />
         </div>
-        <span className="ml-2 text-xs text-slate-400 font-medium">{langLabel[language] ?? language ?? "Code"}</span>
+        <span className="ml-2 text-xs text-zinc-500 font-medium">{langLabel[language] ?? language ?? "Code"}</span>
       </div>
-      <pre className="bg-slate-900 text-slate-200 text-sm leading-relaxed p-4 overflow-x-auto font-mono">
+      <pre className="bg-zinc-50 text-zinc-800 text-sm leading-relaxed p-4 overflow-x-auto font-mono">
         {highlight(code, language)}
       </pre>
     </div>

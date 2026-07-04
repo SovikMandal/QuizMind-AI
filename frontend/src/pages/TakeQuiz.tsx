@@ -560,43 +560,49 @@ export default function TakeQuiz() {
 
         {/* Right: Question Content */}
         <main className="flex-1 overflow-y-auto scrollbar-hide p-6">
-          <div className="mx-auto max-w-3xl flex flex-col gap-5">
-            {/* Question Card */}
-            <Card className="overflow-hidden border-0 shadow-md">
-              {/* Question Header */}
-              <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/50 px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2b7fff] to-[#1a6ef0] text-sm font-bold text-white shadow-sm">
-                    {idx + 1}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-white border border-zinc-200 text-zinc-700 shadow-sm">{typeLabel[q.questionType] ?? q.questionType}</Badge>
-                    {q.difficulty && (
-                      <Badge className={cn(
-                        "border shadow-sm",
-                        q.difficulty === "easy" ? "bg-green-50 border-green-200 text-green-700" :
-                        q.difficulty === "medium" ? "bg-amber-50 border-amber-200 text-amber-700" :
-                        "bg-red-50 border-red-200 text-red-700"
-                      )}>
-                        {q.difficulty}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <span className="rounded-lg bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500">
-                  {idx + 1} / {total}
+          <div className="mx-auto max-w-6xl flex flex-col gap-5">
+            {/* Question Header */}
+            <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-6 py-3 shadow-sm">
+              <div className="flex items-center gap-3">
+                <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2b7fff] to-[#1a6ef0] text-sm font-bold text-white shadow-sm">
+                  {idx + 1}
                 </span>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-white border border-zinc-200 text-zinc-700 shadow-sm">{typeLabel[q.questionType] ?? q.questionType}</Badge>
+                  {q.difficulty && (
+                    <Badge className={cn(
+                      "border shadow-sm",
+                      q.difficulty === "easy" ? "bg-green-50 border-green-200 text-green-700" :
+                      q.difficulty === "medium" ? "bg-amber-50 border-amber-200 text-amber-700" :
+                      "bg-red-50 border-red-200 text-red-700"
+                    )}>
+                      {q.difficulty}
+                    </Badge>
+                  )}
+                </div>
               </div>
+              <span className="rounded-lg bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500">
+                {idx + 1} / {total}
+              </span>
+            </div>
 
-              {/* Question Body */}
-              <div className="p-6 lg:p-8">
-                <h2 className="text-lg font-semibold leading-relaxed text-zinc-900 lg:text-xl">
+            {/* Two Column Layout: Question | Options */}
+            <div className="grid gap-5 lg:grid-cols-2">
+              {/* Column 1: Question */}
+              <Card className="border-0 shadow-md p-6 lg:p-8 flex flex-col">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-4">Question</h3>
+                <h2 className="text-lg font-semibold leading-relaxed text-zinc-900">
                   {q.questionText}
                 </h2>
+              </Card>
 
-                {/* Options */}
+              {/* Column 2: Options */}
+              <Card className="border-0 shadow-md p-6 lg:p-8 flex flex-col">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-4">
+                  {q.options && q.options.length ? "Choose your answer" : "Your answer"}
+                </h3>
                 {q.options && q.options.length ? (
-                  <div className="mt-6 flex flex-col gap-3">
+                  <div className="flex flex-col gap-3">
                     {q.options.map((o, i) => {
                       const selected = answers[q.id] === o.id;
                       return (
@@ -639,49 +645,49 @@ export default function TakeQuiz() {
                     onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
                     placeholder="Type your answer here..."
                     rows={4}
-                    className="mt-6 w-full rounded-xl border-2 border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2b7fff] focus:ring-2 focus:ring-[#2b7fff]/10 resize-none"
+                    className="w-full rounded-xl border-2 border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2b7fff] focus:ring-2 focus:ring-[#2b7fff]/10 resize-none"
                   />
                 )}
-              </div>
+              </Card>
+            </div>
 
-              {/* Question Footer - Navigation */}
-              <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50/30 px-6 py-4">
-                <Button
-                  variant="outline"
-                  disabled={idx === 0}
-                  onClick={() => setIdx((i) => i - 1)}
-                  className="rounded-lg"
-                >
-                  <ChevronLeft className="size-4" /> Previous
-                </Button>
+            {/* Navigation Bar */}
+            <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-6 py-4 shadow-sm">
+              <Button
+                variant="outline"
+                disabled={idx === 0}
+                onClick={() => setIdx((i) => i - 1)}
+                className="rounded-lg"
+              >
+                <ChevronLeft className="size-4" /> Previous
+              </Button>
 
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "rounded-lg",
-                    flagged[q.id] ? "bg-amber-50 text-amber-600 hover:bg-amber-100" : ""
-                  )}
-                  onClick={() => setFlagged((f) => ({ ...f, [q.id]: !f[q.id] }))}
-                >
-                  <Flag className={cn("size-4", flagged[q.id] && "fill-amber-500")} />
-                  {flagged[q.id] ? "Flagged" : "Flag for Review"}
-                </Button>
-
-                {idx < total - 1 ? (
-                  <Button onClick={() => setIdx((i) => i + 1)} className="rounded-lg">
-                    Next <ChevronRight className="size-4" />
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={() => setConfirmSubmit(true)}
-                    disabled={locked || submitting || answeredCount === 0}
-                    className="rounded-lg bg-green-600 hover:bg-green-700"
-                  >
-                    <Send className="size-4" /> Submit
-                  </Button>
+              <Button
+                variant="ghost"
+                className={cn(
+                  "rounded-lg",
+                  flagged[q.id] ? "bg-amber-50 text-amber-600 hover:bg-amber-100" : ""
                 )}
-              </div>
-            </Card>
+                onClick={() => setFlagged((f) => ({ ...f, [q.id]: !f[q.id] }))}
+              >
+                <Flag className={cn("size-4", flagged[q.id] && "fill-amber-500")} />
+                {flagged[q.id] ? "Flagged" : "Flag for Review"}
+              </Button>
+
+              {idx < total - 1 ? (
+                <Button onClick={() => setIdx((i) => i + 1)} className="rounded-lg">
+                  Next <ChevronRight className="size-4" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setConfirmSubmit(true)}
+                  disabled={locked || submitting || answeredCount === 0}
+                  className="rounded-lg bg-green-600 hover:bg-green-700"
+                >
+                  <Send className="size-4" /> Submit
+                </Button>
+              )}
+            </div>
 
             {/* Presence Indicator */}
             <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-5 py-3.5 shadow-sm">

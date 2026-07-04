@@ -15,6 +15,8 @@ import {
   Shield,
   Lock,
   Eye,
+  Code2,
+  Calculator,
 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import toast from "react-hot-toast";
@@ -83,6 +85,122 @@ function isFullscreen() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (document as any).msFullscreenElement
   );
+}
+
+/* ─── Syntax highlighter for code blocks ─── */
+function highlight(code: string, lang: string): React.ReactNode[] {
+  const jsKeywords = /\b(const|let|var|function|return|if|else|for|while|of|in|new|this|class|extends|import|export|default|typeof|instanceof|true|false|null|undefined|async|await|=>)\b/g;
+  const pyKeywords = /\b(def|return|if|elif|else|for|while|in|not|and|or|True|False|None|import|from|class|self|lambda|with|as|pass|break|continue|yield|print)\b/g;
+  const cppKeywords = /\b(int|char|float|double|void|bool|struct|class|public|private|return|if|else|for|while|new|delete|nullptr|NULL|true|false|cout|cin|include|using|namespace|std|const|static)\b/g;
+  const strings = /(["'`])((?:\\.|(?!\1)[^\\])*)\1/g;
+  const comments = /(\/\/.*|#.*)/g;
+  const numbers = /\b(\d+)\b/g;
+
+  const keywords = lang === "python" ? pyKeywords : (lang === "cpp" || lang === "c" || lang === "java") ? cppKeywords : jsKeywords;
+  const lines = code.split("\n");
+
+  return lines.map((line, li) => {
+    type Match = { start: number; end: number; cls: string; text: string };
+    const matches: Match[] = [];
+    const patterns: { re: RegExp; cls: string }[] = [
+      { re: new RegExp(comments.source, "g"), cls: "text-slate-400 italic" },
+      { re: new RegExp(strings.source, "g"), cls: "text-emerald-400" },
+      { re: new RegExp(keywords.source, "g"), cls: "text-violet-400 font-semibold" },
+      { re: new RegExp(numbers.source, "g"), cls: "text-amber-400" },
+    ];
+    for (const { re, cls } of patterns) {
+      const r = new RegExp(re.source, "g");
+      let m: RegExpExecArray | null;
+      while ((m = r.exec(line)) !== null) {
+        matches.push({ start: m.index, end: m.index + m[0].length, cls, text: m[0] });
+      }
+    }
+    matches.sort((a, b) => a.start - b.start);
+    const used: Match[] = [];
+    let cursor = 0;
+    for (const m of matches) {
+      if (m.start >= cursor) { used.push(m); cursor = m.end; }
+    }
+    const nodes: React.ReactNode[] = [];
+    let idx = 0;
+    for (const m of used) {
+      if (m.start > idx) nodes.push(line.slice(idx, m.start));
+      nodes.push(<span key={m.start} className={m.cls}>{m.text}</span>);
+      idx = m.end;
+    }
+    if (idx < line.length) nodes.push(line.slice(idx));
+    return (
+      <div key={li} className="flex">
+        <span className="select-none w-8 shrink-0 text-right pr-4 text-slate-600 text-xs">{li + 1}</span>
+        <span>{nodes.length ? nodes : " "}</span>
+      </div>
+    );
+  });
+}
+
+const langLabel: Record<string, string> = {
+  javascript: "JavaScript", js: "JavaScript", typescript: "TypeScript", ts: "TypeScript",
+  python: "Python", py: "Python", cpp: "C++", c: "C", java: "Java", csharp: "C#",
+};
+
+function CodeBlock({ code, language }: { code: string; language: string }) {
+  return (
+    <div className="rounded-xl overflow-hidden border border-slate-700/60 shadow-lg">
+      <div className="flex items-center gap-2 bg-slate-800 px-4 py-2.5 border-b border-slate-700">
+        <div className="flex gap-1.5">
+          <span className="size-2.5 rounded-full bg-red-500/70" />
+          <span className="size-2.5 rounded-full bg-amber-500/70" />
+          <span className="size-2.5 rounded-full bg-emerald-500/70" />
+        </div>
+        <span className="ml-2 text-xs text-slate-400 font-medium">{langLabel[language] ?? language ?? "Code"}</span>
+      </div>
+      <pre className="bg-slate-900 text-slate-200 text-sm leading-relaxed p-4 overflow-x-auto font-mono">
+        {highlight(code, language)}
+      </pre>
+    </div>
+  );
+}
+
+/* Parse questionText into structured parts: plain text, formula, code, diagram */
+interface ParsedQuestion {
+  text: string;
+  formula: string;
+  code: string;
+  codeLang: string;
+  diagram: string;
+}
+function parseQuestion(raw: string): ParsedQuestion {
+  let text = raw;
+  let formula = "";
+  let code = "";
+  let codeLang = "";
+  let diagram = "";
+
+  // Extract $$formula$$
+  const formulaMatch = text.match(/\$\$([\s\S]*?)\$\$/);
+  if (formulaMatch) {
+    formula = formulaMatch[1].trim();
+    if (formula.includes("\\")) formula = cleanFormula(formula);
+    text = text.replace(formulaMatch[0], "").trim();
+  }
+
+  // Extract code/diagram blocks ```lang\n...\n```
+  const blockRegex = /```(\w*)\n?([\s\S]*?)```/g;
+  let m: RegExpExecArray | null;
+  while ((m = blockRegex.exec(raw)) !== null) {
+    if (m[1] === "diagram") {
+      diagram = m[2].trim();
+    } else {
+      code = m[2].trim();
+      codeLang = m[1] || "";
+    }
+    text = text.replace(m[0], "").trim();
+  }
+
+  // Clean remaining LaTeX in text
+  if (text.includes("\\")) text = cleanFormula(text);
+
+  return { text, formula, code, codeLang, diagram };
 }
 
 /* ─── Render question text with code, math, chemistry formatting ─── */
@@ -691,6 +809,8 @@ export default function TakeQuiz() {
   const q = questions[idx];
   const total = questions.length;
   const locked = !!state.completed;
+  const parsed = parseQuestion(q.questionText);
+  const hasCode = !!parsed.code;
   const answeredCount = questions.filter((x) => answers[x.id]).length;
   const flaggedCount = questions.filter((x) => flagged[x.id]).length;
   const isLive =
@@ -710,6 +830,60 @@ export default function TakeQuiz() {
 
   // Progress percentage for circular indicator
   const progressPercent = total ? (answeredCount / total) * 100 : 0;
+
+  // Renders the options list (or textarea for short answer) with theme color
+  const renderOptions = (theme: "blue" | "violet") => {
+    const accent = theme === "violet" ? "#8b5cf6" : "#2b7fff";
+    if (!q.options || !q.options.length) {
+      return (
+        <textarea
+          value={answers[q.id] ?? ""}
+          disabled={locked}
+          onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
+          placeholder="Type your answer here..."
+          rows={5}
+          className="w-full rounded-xl border-2 border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2b7fff] focus:ring-2 focus:ring-[#2b7fff]/10 resize-none"
+        />
+      );
+    }
+    return (
+      <div className="flex flex-col gap-3">
+        {q.options.map((o, i) => {
+          const selected = answers[q.id] === o.id;
+          const optText = o.text.includes("\\") ? cleanFormula(o.text) : o.text;
+          return (
+            <button
+              key={o.id}
+              disabled={locked}
+              onClick={() => setAnswers((a) => ({ ...a, [q.id]: o.id }))}
+              className={cn(
+                "group flex items-center gap-4 rounded-xl border-2 px-5 py-4 text-left transition-all duration-150 cursor-pointer",
+                selected ? "shadow-sm" : "border-zinc-200 bg-white hover:bg-zinc-50"
+              )}
+              style={selected ? { borderColor: accent, backgroundColor: `${accent}0d` } : undefined}
+            >
+              <span
+                className={cn(
+                  "flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors",
+                  selected ? "text-white" : "border-zinc-300 text-zinc-500"
+                )}
+                style={selected ? { borderColor: accent, backgroundColor: accent } : undefined}
+              >
+                {String.fromCharCode(65 + i)}
+              </span>
+              <span
+                className={cn("text-[15px]", hasCode ? "font-mono" : "font-medium", selected ? "" : "text-zinc-700")}
+                style={selected ? { color: accent } : undefined}
+              >
+                {optText}
+              </span>
+              {selected && <CheckCircle2 className="ml-auto size-5 shrink-0" style={{ color: accent }} />}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-[#f8f9fb] overflow-hidden scrollbar-hide">
@@ -809,111 +983,118 @@ export default function TakeQuiz() {
 
       {/* ═══ MAIN CONTENT ═══ */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Question List (single column, square cards, scrollable) */}
+        {/* Left: Question List with CODE badge */}
         <aside className="hidden lg:flex w-[60px] shrink-0 flex-col items-center border-r border-zinc-200 bg-white overflow-y-auto py-3" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d8 transparent' }}>
-          {questions.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setIdx(i)}
-              className={cn(
-                "mb-2 flex size-10 items-center justify-center rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer",
-                chipClass(i)
-              )}
-            >
-              {i + 1}
-            </button>
-          ))}
+          {questions.map((qItem, i) => {
+            const itemHasCode = qItem.questionText.includes("```") && !qItem.questionText.includes("```diagram");
+            return (
+              <button
+                key={i}
+                onClick={() => setIdx(i)}
+                className={cn(
+                  "relative mb-2 flex size-10 items-center justify-center rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer",
+                  chipClass(i)
+                )}
+              >
+                {i + 1}
+                {itemHasCode && (
+                  <span className="absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-violet-500">
+                    <Code2 className="size-2 text-white" />
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </aside>
 
         {/* Right: Question Content */}
         <main className="flex-1 overflow-hidden flex flex-col">
-          <div className="flex flex-col h-full">
-            {/* Single Card covering everything */}
-            <Card className="border-0 shadow-none rounded-none border-l-0 flex-1 flex flex-col overflow-hidden">
-              {/* Two Column: Question (40%) | Options (60%) */}
-              <div className="flex-1 grid lg:grid-cols-[40%_60%] min-h-0 overflow-y-auto scrollbar-hide">
-                {/* Column 1: Question */}
-                <div className="p-5 flex flex-col border-r border-zinc-200">
-                  <div className="flex items-center flex-wrap gap-2 mb-4">
-                    <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#2b7fff] to-[#1a6ef0] text-xs font-bold text-white">
-                      {idx + 1}
-                    </span>
-                    <Badge className="bg-purple-50 border border-purple-200 text-purple-700">{typeLabel[q.questionType] ?? q.questionType}</Badge>
+          <Card className="border-0 shadow-none rounded-none flex-1 flex flex-col overflow-hidden">
+            {hasCode ? (
+              /* ─── CODE LAYOUT: question + code on left, options on right ─── */
+              <div className="flex-1 grid lg:grid-cols-2 min-h-0 overflow-y-auto scrollbar-hide divide-x divide-zinc-200">
+                {/* Left: meta + question + code */}
+                <div className="p-5 flex flex-col gap-4 min-w-0">
+                  <div className="flex items-center flex-wrap gap-2">
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-violet-600 text-xs font-bold text-white">{idx + 1}</span>
+                    <Badge className="bg-violet-100 border border-violet-200 text-violet-700"><Code2 className="size-3" /> CODE</Badge>
                     {q.difficulty && (
-                      <Badge className={cn(
-                        "border",
+                      <Badge className={cn("border",
                         q.difficulty === "easy" ? "bg-emerald-50 border-emerald-200 text-emerald-700" :
                         q.difficulty === "medium" ? "bg-orange-50 border-orange-200 text-orange-700" :
                         "bg-rose-50 border-rose-200 text-rose-700"
-                      )}>
-                        {q.difficulty}
-                      </Badge>
+                      )}>{q.difficulty}</Badge>
                     )}
-                    {state.subject && (
-                      <Badge className="bg-blue-50 border border-blue-200 text-blue-700">{state.subject}</Badge>
-                    )}
+                    {state.subject && <Badge className="bg-zinc-100 border border-zinc-200 text-zinc-600">{state.subject}</Badge>}
                     <span className="ml-auto text-xs font-medium text-zinc-400">{idx + 1} / {total}</span>
                   </div>
-                  {/* Question text in bordered box */}
-                  <div className="rounded-xl border border-dashed border-zinc-300 p-4 mb-3">
-                    <div className="text-[15px] font-medium leading-relaxed text-zinc-800">
-                      {renderQuestionText(q.questionText.includes("\\") ? cleanFormula(q.questionText) : q.questionText, q.imageUrl)}
-                    </div>
+                  <div className="rounded-xl border border-zinc-200 px-5 py-4">
+                    <p className="text-[15px] leading-relaxed text-zinc-800">{parsed.text}</p>
                   </div>
+                  {parsed.formula && (
+                    <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-center">
+                      <p className="font-mono text-base text-blue-800">{parsed.formula}</p>
+                    </div>
+                  )}
+                  {parsed.diagram && (
+                    <div className="rounded-xl bg-blue-50 border border-blue-100 p-4">
+                      <pre className="text-sm font-mono leading-relaxed text-blue-900 whitespace-pre overflow-x-auto">{parsed.diagram}</pre>
+                    </div>
+                  )}
+                  <CodeBlock code={parsed.code} language={parsed.codeLang} />
                 </div>
 
-                {/* Column 2: Options */}
-                <div className="p-5 flex flex-col">
+                {/* Right: options */}
+                <div className="p-5 bg-slate-50/60 min-w-0">
                   <h3 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 mb-4">Select your answer</h3>
-                  {q.options && q.options.length ? (
-                    <div className="flex flex-col gap-3 flex-1">
-                      {q.options.map((o, i) => {
-                        const selected = answers[q.id] === o.id;
-                        return (
-                          <button
-                            key={o.id}
-                            disabled={locked}
-                            onClick={() => setAnswers((a) => ({ ...a, [q.id]: o.id }))}
-                            className={cn(
-                              "group flex items-center gap-4 rounded-xl border-2 px-5 py-4 text-left transition-all duration-200",
-                              selected
-                                ? "border-[#2b7fff] bg-[#2b7fff]/5 shadow-sm shadow-blue-100"
-                                : "border-zinc-200 hover:border-[#2b7fff]/50 hover:bg-zinc-50 hover:shadow-sm"
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                "flex size-9 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-all",
-                                selected
-                                  ? "border-[#2b7fff] bg-[#2b7fff] text-white"
-                                  : "border-zinc-300 text-zinc-500 group-hover:border-[#2b7fff]/50"
-                              )}
-                            >
-                              {String.fromCharCode(65 + i)}
-                            </span>
-                            <span className={cn(
-                              "text-sm font-medium transition-colors",
-                              selected ? "text-[#2b7fff]" : "text-zinc-700"
-                            )}>
-                              {o.text.includes("\\") ? cleanFormula(o.text) : o.text}
-                            </span>
-                            {selected && <CheckCircle2 className="ml-auto size-5 text-[#2b7fff] shrink-0" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <textarea
-                      value={answers[q.id] ?? ""}
-                      disabled={locked}
-                      onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
-                      placeholder="Type your answer here..."
-                      rows={4}
-                      className="w-full flex-1 rounded-xl border-2 border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2b7fff] focus:ring-2 focus:ring-[#2b7fff]/10 resize-none"
-                    />
-                  )}
+                  {renderOptions("violet")}
                 </div>
               </div>
+            ) : (
+              /* ─── MCQ LAYOUT: question + formula on left, options on right ─── */
+              <div className="flex-1 grid lg:grid-cols-2 min-h-0 overflow-y-auto scrollbar-hide divide-x divide-zinc-200">
+                {/* Left: meta + question + formula */}
+                <div className="p-5 flex flex-col gap-4 min-w-0">
+                  <div className="flex items-center flex-wrap gap-2">
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-[#2b7fff] text-xs font-bold text-white">{idx + 1}</span>
+                    <Badge className="bg-blue-100 border border-blue-200 text-blue-700"><Calculator className="size-3" /> {typeLabel[q.questionType] ?? q.questionType}</Badge>
+                    {q.difficulty && (
+                      <Badge className={cn("border",
+                        q.difficulty === "easy" ? "bg-emerald-50 border-emerald-200 text-emerald-700" :
+                        q.difficulty === "medium" ? "bg-orange-50 border-orange-200 text-orange-700" :
+                        "bg-rose-50 border-rose-200 text-rose-700"
+                      )}>{q.difficulty}</Badge>
+                    )}
+                    {state.subject && <Badge className="bg-violet-50 border border-violet-200 text-violet-600">{state.subject}</Badge>}
+                    <span className="ml-auto text-xs font-medium text-zinc-400">{idx + 1} / {total}</span>
+                  </div>
+                  <div className="rounded-xl border border-zinc-200 p-5">
+                    <p className="text-[15px] leading-relaxed text-zinc-800">{parsed.text}</p>
+                  </div>
+                  {parsed.formula && (
+                    <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 text-center">
+                      <p className="font-mono text-base text-blue-800 tracking-wide">{parsed.formula}</p>
+                    </div>
+                  )}
+                  {parsed.diagram && (
+                    <div className="rounded-xl bg-blue-50 border border-blue-100 p-4">
+                      <pre className="text-sm font-mono leading-relaxed text-blue-900 whitespace-pre overflow-x-auto">{parsed.diagram}</pre>
+                    </div>
+                  )}
+                  {q.imageUrl && (
+                    <div className="rounded-lg border border-zinc-200 overflow-hidden bg-white">
+                      <img src={q.imageUrl} alt="Question" className="w-full h-auto max-h-[300px] object-contain" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Right: options */}
+                <div className="p-5 min-w-0">
+                  <h3 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 mb-4">Select your answer</h3>
+                  {renderOptions("blue")}
+                </div>
+              </div>
+            )}
 
               {/* Navigation - pinned at bottom */}
               <div className="shrink-0 flex items-center justify-between border-t border-zinc-200 px-6 py-3 bg-white">
@@ -953,8 +1134,6 @@ export default function TakeQuiz() {
                 )}
               </div>
             </Card>
-
-          </div>
         </main>
       </div>
 

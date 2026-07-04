@@ -235,8 +235,8 @@ function renderRichText(text: string) {
     if (token.startsWith("$$") && token.endsWith("$$")) {
       // Block math/formula
       const math = token.slice(2, -2).trim();
-      // Clean up LaTeX notation into readable format
-      const readable = cleanFormula(math);
+      // Only clean if it contains LaTeX commands, otherwise show as-is
+      const readable = math.includes("\\") ? cleanFormula(math) : math;
       parts.push(
         <div key={`bm-${match.index}`} className="my-3 rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-center">
           <span className="font-mono text-base text-blue-900">{readable}</span>
@@ -245,7 +245,7 @@ function renderRichText(text: string) {
     } else if (token.startsWith("$") && token.endsWith("$")) {
       // Inline math
       const math = token.slice(1, -1);
-      const readable = cleanFormula(math);
+      const readable = math.includes("\\") ? cleanFormula(math) : math;
       parts.push(
         <span key={`im-${match.index}`} className="mx-0.5 rounded bg-blue-50 px-1.5 py-0.5 font-mono text-[14px] text-blue-800">
           {readable}

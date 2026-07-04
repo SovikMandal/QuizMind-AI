@@ -37,11 +37,16 @@ IMPORTANT RULES:
 
 STRUCTURED CONTENT RULES — SEPARATE the question into distinct fields:
 1. "content" = ONLY plain text question (e.g. "What is the product of the following reaction?" or "What is the output of this code for the given tree?")
-2. "formula" = ANY math or science formula/equation:
+2. "formula" = ANY math or science formula/equation in PLAIN READABLE TEXT (NOT LaTeX):
    - Math: "x = (-b ± √(b²-4ac)) / 2a" or "∫₀¹ x² dx = 1/3"
-   - Chemistry: "2H2 + O2 -> 2H2O" or "CH3COOH + NaOH -> CH3COONa + H2O"  
-   - Physics: "F = ma" or "E = hν"
-   - Use -> for reaction arrows, subscript numbers as plain (H2O not H₂O)
+   - Use unicode: ² ³ ₀ ₁ ₂ ₃ √ ∫ Σ π ∞ ≤ ≥ ≠ ± × ÷ → ⇌ Δ α β γ θ λ
+   - Chemistry: "2H₂ + O₂ → 2H₂O" or "CH₃COOH + NaOH → CH₃COONa + H₂O"  
+   - Physics: "F = ma" or "E = hν" or "v = v₀ + at"
+   - NEVER use LaTeX commands like \frac, \int, \sqrt, \sum etc.
+   - Write fractions as: a/b or use ½ ⅓ ¼
+   - Write integrals as: ∫₀³ (x² - 4x + 3) dx
+   - Write subscripts with unicode: v₀, H₂O, x₁
+   - Write superscripts with unicode: x², x³, m⁻¹
 3. "diagram" = ANY visual structure as ASCII art with \\n for line breaks:
    - Binary trees: "    1\\n   / \\\\\\n  2   3"
    - Graphs: "A --5--> B --3--> C"
@@ -53,7 +58,8 @@ STRUCTURED CONTENT RULES — SEPARATE the question into distinct fields:
 
 - NEVER put formulas, code, or diagrams inside "content"
 - A question can have multiple fields filled (e.g. both formula AND diagram)
-- Code must be multi-line with proper indentation, never single-line`;
+- Code must be multi-line with proper indentation, never single-line
+- CRITICAL: formulas must use UNICODE characters (², ³, ₀, ₁, √, ∫, →, ≤, π), NEVER LaTeX (\\frac, \\int, \\sqrt)`;
 }
 
 /** Extracts and normalizes a JSON array of questions from a raw LLM response. */

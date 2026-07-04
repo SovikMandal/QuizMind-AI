@@ -123,9 +123,9 @@ function renderQuestionText(text: string, imageUrl?: string | null) {
           .trim();
       }
       elements.push(
-        <div key={`code-${i}`} className="my-3 rounded-lg bg-[#1e1e2e] p-4 overflow-x-auto">
-          {seg.lang && <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{seg.lang}</div>}
-          <pre className="text-sm font-mono leading-relaxed text-[#cdd6f4] whitespace-pre-wrap break-words">
+        <div key={`code-${i}`} className="my-3 rounded-lg bg-zinc-50 border border-zinc-200 p-4 overflow-x-auto">
+          {seg.lang && <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{seg.lang}</div>}
+          <pre className="text-sm font-mono leading-relaxed text-zinc-800 whitespace-pre-wrap break-words">
             <code>{code}</code>
           </pre>
         </div>

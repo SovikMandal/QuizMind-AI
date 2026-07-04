@@ -112,11 +112,21 @@ function renderQuestionText(text: string, imageUrl?: string | null) {
 
   segments.forEach((seg, i) => {
     if (seg.type === "code") {
+      // Format single-line code: add line breaks after { ; } for readability
+      let code = seg.content;
+      if (!code.includes("\n") && code.length > 60) {
+        code = code
+          .replace(/;\s*/g, ";\n")
+          .replace(/\{\s*/g, "{\n  ")
+          .replace(/\}\s*/g, "\n}\n")
+          .replace(/\n\s*\n/g, "\n")
+          .trim();
+      }
       elements.push(
         <div key={`code-${i}`} className="my-3 rounded-lg bg-[#1e1e2e] p-4 overflow-x-auto">
           {seg.lang && <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{seg.lang}</div>}
           <pre className="text-sm font-mono leading-relaxed text-[#cdd6f4] whitespace-pre-wrap break-words">
-            <code>{seg.content}</code>
+            <code>{code}</code>
           </pre>
         </div>
       );

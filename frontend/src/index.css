@@ -26,3 +26,16 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* All clickable elements get pointer cursor */
+button,
+[role="button"],
+a,
+select,
+input[type="checkbox"],
+input[type="radio"],
+input[type="submit"],
+input[type="button"],
+label[for] {
+  cursor: pointer;
+}

@@ -746,7 +746,7 @@ export default function TakeQuiz() {
               key={i}
               onClick={() => setIdx(i)}
               className={cn(
-                "mb-1.5 flex size-12 items-center justify-center rounded-lg text-xs font-semibold transition-all shrink-0",
+                "mb-1.5 flex size-12 items-center justify-center rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer",
                 chipClass(i)
               )}
             >

@@ -12,54 +12,88 @@ export function buildQuestionPrompt(
   count: number,
   questionType: QuestionFormat
 ): string {
-  return `Generate exactly ${count} ${difficulty} level ${label[questionType]} questions about "${topic}".
+  return `You are an expert quiz author. Generate exactly ${count} high-quality ${difficulty}-level ${label[questionType]} questions about "${topic}".
 
-Respond with a valid JSON array ONLY (no markdown, no extra text). Each item must have:
+════════════════════════════════════════
+OUTPUT FORMAT
+════════════════════════════════════════
+Return ONLY a valid JSON array. No markdown fences, no commentary, no trailing text.
+
+Each object MUST follow this exact shape:
+{
+  "content": "The question in plain text only",
+  "formula": "Math/science equation in unicode, or \\"\\"",
+  "diagram": "ASCII art (trees/graphs/tables) with \\n line breaks, or \\"\\"",
+  "code": "Source code with \\n line breaks and 2-space indent, or \\"\\"",
+  "codeLang": "cpp | python | java | javascript | c | ... or \\"\\"",
+  "options": ["Option A", "Option B", "Option C", "Option D"],
+  "correctAnswer": "must exactly match one option",
+  "explanation": "1-2 sentence justification of the correct answer",
+  "difficulty": "${difficulty}"
+}
+
+════════════════════════════════════════
+FIELD SEPARATION (STRICT)
+════════════════════════════════════════
+Split every question into the RIGHT field. NEVER mix code, formulas, or diagrams into "content".
+
+• content  → ONLY the plain-text question sentence.
+• formula  → math / physics / chemistry expressions in UNICODE (never LaTeX):
+             use ² ³ ₀ ₁ ₂ √ ∫ Σ Π π ∞ ≤ ≥ ≠ ± × ÷ · → ⇌ Δ α β γ θ λ μ
+             fractions as a/b or ½ ⅓ ¼ ; subscripts v₀, H₂O ; superscripts x², m⁻¹
+             NEVER output \\frac, \\int, \\sqrt, \\sum or any backslash command.
+• diagram  → ASCII structures (binary trees, graphs, circuits, flowcharts,
+             tables, molecular chains) using \\n for new lines.
+• code     → runnable, properly indented multi-line code. Never single-line.
+• codeLang → the language of "code" so it can be syntax-highlighted.
+
+A single question MAY populate more than one field (e.g. a question with both
+a diagram AND code, or text AND a formula).
+
+════════════════════════════════════════
+QUESTION TYPE RULES
+════════════════════════════════════════
+• multiple choice → 4 distinct options, exactly one correct, plausible distractors.
+• true/false      → options MUST be ["True", "False"].
+• short answer    → options MUST be [] and put the answer in "correctAnswer".
+
+════════════════════════════════════════
+QUALITY BAR
+════════════════════════════════════════
+• Match the "${difficulty}" difficulty precisely.
+• Cover a variety of sub-topics within "${topic}" (avoid repetition).
+• Distractors must be believable, not obviously wrong.
+• Keep "content" concise and unambiguous.
+
+════════════════════════════════════════
+EXAMPLES (format reference only — do not copy content)
+════════════════════════════════════════
 [
   {
-    "content": "Plain text question only (no code, no diagrams, no formulas here)",
-    "diagram": "ASCII diagram if needed (trees, graphs, circuits, molecular structures, tables, flowcharts). Use \\n for newlines. Empty string if not needed.",
-    "formula": "Math equation or chemistry formula if needed (use LaTeX notation like E = mc^2 or H2SO4 + NaOH -> Na2SO4 + H2O). Empty string if not needed.",
-    "code": "Code snippet if needed with \\n for line breaks and proper indentation. Empty string if not needed.",
-    "codeLang": "Language of code (cpp, python, java, javascript, c, etc). Empty string if no code.",
-    "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correctAnswer": "Option A",
-    "explanation": "Why this is correct",
+    "content": "What is the output of the following code?",
+    "formula": "",
+    "diagram": "",
+    "code": "const nums = [1, 2, 3];\\nconst r = nums.map(n => n * n);\\nconsole.log(r);",
+    "codeLang": "javascript",
+    "options": ["[1, 4, 9]", "[1, 2, 3]", "[2, 4, 6]", "[9, 4, 1]"],
+    "correctAnswer": "[1, 4, 9]",
+    "explanation": "map squares each element, producing [1, 4, 9].",
+    "difficulty": "${difficulty}"
+  },
+  {
+    "content": "Find the maximum height reached by a ball thrown up at 20 m/s (g = 10 m/s²).",
+    "formula": "h = v₀²/(2g)",
+    "diagram": "",
+    "code": "",
+    "codeLang": "",
+    "options": ["20 m", "10 m", "40 m", "5 m"],
+    "correctAnswer": "20 m",
+    "explanation": "h = 20²/(2·10) = 400/20 = 20 m.",
     "difficulty": "${difficulty}"
   }
 ]
 
-IMPORTANT RULES:
-- Return ONLY the JSON array, no markdown fences, no extra text.
-- correctAnswer must exactly match one of the options.
-- For true/false questions, use ["True", "False"] as options.
-- For short answer questions, use an empty options array and put the answer in correctAnswer.
-
-STRUCTURED CONTENT RULES — SEPARATE the question into distinct fields:
-1. "content" = ONLY plain text question (e.g. "What is the product of the following reaction?" or "What is the output of this code for the given tree?")
-2. "formula" = ANY math or science formula/equation in PLAIN READABLE TEXT (NOT LaTeX):
-   - Math: "x = (-b ± √(b²-4ac)) / 2a" or "∫₀¹ x² dx = 1/3"
-   - Use unicode: ² ³ ₀ ₁ ₂ ₃ √ ∫ Σ π ∞ ≤ ≥ ≠ ± × ÷ → ⇌ Δ α β γ θ λ
-   - Chemistry: "2H₂ + O₂ → 2H₂O" or "CH₃COOH + NaOH → CH₃COONa + H₂O"  
-   - Physics: "F = ma" or "E = hν" or "v = v₀ + at"
-   - NEVER use LaTeX commands like \frac, \int, \sqrt, \sum etc.
-   - Write fractions as: a/b or use ½ ⅓ ¼
-   - Write integrals as: ∫₀³ (x² - 4x + 3) dx
-   - Write subscripts with unicode: v₀, H₂O, x₁
-   - Write superscripts with unicode: x², x³, m⁻¹
-3. "diagram" = ANY visual structure as ASCII art with \\n for line breaks:
-   - Binary trees: "    1\\n   / \\\\\\n  2   3"
-   - Graphs: "A --5--> B --3--> C"
-   - Circuit diagrams: "R1 ---/\\/\\/--- R2"
-   - Molecular structures, state diagrams, flowcharts, tables
-   - Organic chemistry structures (benzene ring, carbon chains)
-4. "code" = ONLY programming code with proper formatting (\\n for newlines, 2-space indent)
-5. "codeLang" = language identifier for syntax context
-
-- NEVER put formulas, code, or diagrams inside "content"
-- A question can have multiple fields filled (e.g. both formula AND diagram)
-- Code must be multi-line with proper indentation, never single-line
-- CRITICAL: formulas must use UNICODE characters (², ³, ₀, ₁, √, ∫, →, ≤, π), NEVER LaTeX (\\frac, \\int, \\sqrt)`;
+Now generate ${count} questions about "${topic}". Return ONLY the JSON array.`;
 }
 
 /** Extracts and normalizes a JSON array of questions from a raw LLM response. */

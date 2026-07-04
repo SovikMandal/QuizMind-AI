@@ -560,134 +560,137 @@ export default function TakeQuiz() {
 
         {/* Right: Question Content */}
         <main className="flex-1 overflow-y-auto scrollbar-hide p-6">
-          <div className="mx-auto max-w-6xl flex flex-col h-full gap-4">
-            {/* Question Header */}
-            <div className="shrink-0 flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-6 py-3 shadow-sm">
-              <div className="flex items-center gap-3">
-                <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2b7fff] to-[#1a6ef0] text-sm font-bold text-white shadow-sm">
-                  {idx + 1}
+          <div className="mx-auto max-w-6xl flex flex-col h-full">
+            {/* Single Card covering everything */}
+            <Card className="border-0 shadow-md flex-1 flex flex-col overflow-hidden">
+              {/* Question Header */}
+              <div className="shrink-0 flex items-center justify-between px-6 py-3 border-b border-zinc-200">
+                <div className="flex items-center gap-3">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2b7fff] to-[#1a6ef0] text-sm font-bold text-white shadow-sm">
+                    {idx + 1}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-white border border-zinc-200 text-zinc-700 shadow-sm">{typeLabel[q.questionType] ?? q.questionType}</Badge>
+                    {q.difficulty && (
+                      <Badge className={cn(
+                        "border shadow-sm",
+                        q.difficulty === "easy" ? "bg-green-50 border-green-200 text-green-700" :
+                        q.difficulty === "medium" ? "bg-amber-50 border-amber-200 text-amber-700" :
+                        "bg-red-50 border-red-200 text-red-700"
+                      )}>
+                        {q.difficulty}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <span className="rounded-lg bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500">
+                  {idx + 1} / {total}
                 </span>
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-white border border-zinc-200 text-zinc-700 shadow-sm">{typeLabel[q.questionType] ?? q.questionType}</Badge>
-                  {q.difficulty && (
-                    <Badge className={cn(
-                      "border shadow-sm",
-                      q.difficulty === "easy" ? "bg-green-50 border-green-200 text-green-700" :
-                      q.difficulty === "medium" ? "bg-amber-50 border-amber-200 text-amber-700" :
-                      "bg-red-50 border-red-200 text-red-700"
-                    )}>
-                      {q.difficulty}
-                    </Badge>
+              </div>
+
+              {/* Two Column: Question | Options */}
+              <div className="flex-1 grid lg:grid-cols-2 min-h-0">
+                {/* Column 1: Question */}
+                <div className="p-6 lg:p-8 flex flex-col border-r border-zinc-200">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-4">Question</h3>
+                  <h2 className="text-lg font-semibold leading-relaxed text-zinc-900">
+                    {q.questionText}
+                  </h2>
+                </div>
+
+                {/* Column 2: Options */}
+                <div className="p-6 lg:p-8 flex flex-col">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-4">
+                    {q.options && q.options.length ? "Choose your answer" : "Your answer"}
+                  </h3>
+                  {q.options && q.options.length ? (
+                    <div className="flex flex-col gap-3 flex-1">
+                      {q.options.map((o, i) => {
+                        const selected = answers[q.id] === o.id;
+                        return (
+                          <button
+                            key={o.id}
+                            disabled={locked}
+                            onClick={() => setAnswers((a) => ({ ...a, [q.id]: o.id }))}
+                            className={cn(
+                              "group flex items-center gap-4 rounded-xl border-2 px-5 py-4 text-left transition-all duration-200",
+                              selected
+                                ? "border-[#2b7fff] bg-[#2b7fff]/5 shadow-sm shadow-blue-100"
+                                : "border-zinc-200 hover:border-[#2b7fff]/50 hover:bg-zinc-50 hover:shadow-sm"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "flex size-9 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-all",
+                                selected
+                                  ? "border-[#2b7fff] bg-[#2b7fff] text-white"
+                                  : "border-zinc-300 text-zinc-500 group-hover:border-[#2b7fff]/50"
+                              )}
+                            >
+                              {String.fromCharCode(65 + i)}
+                            </span>
+                            <span className={cn(
+                              "text-sm font-medium transition-colors",
+                              selected ? "text-[#2b7fff]" : "text-zinc-700"
+                            )}>
+                              {o.text}
+                            </span>
+                            {selected && <CheckCircle2 className="ml-auto size-5 text-[#2b7fff] shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <textarea
+                      value={answers[q.id] ?? ""}
+                      disabled={locked}
+                      onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
+                      placeholder="Type your answer here..."
+                      rows={4}
+                      className="w-full flex-1 rounded-xl border-2 border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2b7fff] focus:ring-2 focus:ring-[#2b7fff]/10 resize-none"
+                    />
                   )}
                 </div>
               </div>
-              <span className="rounded-lg bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500">
-                {idx + 1} / {total}
-              </span>
-            </div>
 
-            {/* Two Column Layout: Question | Options — fills remaining space */}
-            <div className="grid gap-4 lg:grid-cols-2 flex-1 min-h-0">
-              {/* Column 1: Question */}
-              <Card className="border-0 shadow-md p-6 lg:p-8 flex flex-col">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-4">Question</h3>
-                <h2 className="text-lg font-semibold leading-relaxed text-zinc-900">
-                  {q.questionText}
-                </h2>
-              </Card>
-
-              {/* Column 2: Options */}
-              <Card className="border-0 shadow-md p-6 lg:p-8 flex flex-col">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-4">
-                  {q.options && q.options.length ? "Choose your answer" : "Your answer"}
-                </h3>
-                {q.options && q.options.length ? (
-                  <div className="flex flex-col gap-3 flex-1">
-                    {q.options.map((o, i) => {
-                      const selected = answers[q.id] === o.id;
-                      return (
-                        <button
-                          key={o.id}
-                          disabled={locked}
-                          onClick={() => setAnswers((a) => ({ ...a, [q.id]: o.id }))}
-                          className={cn(
-                            "group flex items-center gap-4 rounded-xl border-2 px-5 py-4 text-left transition-all duration-200",
-                            selected
-                              ? "border-[#2b7fff] bg-[#2b7fff]/5 shadow-sm shadow-blue-100"
-                              : "border-zinc-200 hover:border-[#2b7fff]/50 hover:bg-zinc-50 hover:shadow-sm"
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              "flex size-9 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-all",
-                              selected
-                                ? "border-[#2b7fff] bg-[#2b7fff] text-white"
-                                : "border-zinc-300 text-zinc-500 group-hover:border-[#2b7fff]/50"
-                            )}
-                          >
-                            {String.fromCharCode(65 + i)}
-                          </span>
-                          <span className={cn(
-                            "text-sm font-medium transition-colors",
-                            selected ? "text-[#2b7fff]" : "text-zinc-700"
-                          )}>
-                            {o.text}
-                          </span>
-                          {selected && <CheckCircle2 className="ml-auto size-5 text-[#2b7fff] shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <textarea
-                    value={answers[q.id] ?? ""}
-                    disabled={locked}
-                    onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
-                    placeholder="Type your answer here..."
-                    rows={4}
-                    className="w-full flex-1 rounded-xl border-2 border-zinc-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2b7fff] focus:ring-2 focus:ring-[#2b7fff]/10 resize-none"
-                  />
-                )}
-              </Card>
-            </div>
-
-            {/* Navigation Bar */}
-            <div className="shrink-0 flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-6 py-3 shadow-sm">
-              <Button
-                variant="outline"
-                disabled={idx === 0}
-                onClick={() => setIdx((i) => i - 1)}
-                className="rounded-lg"
-              >
-                <ChevronLeft className="size-4" /> Previous
-              </Button>
-
-              <Button
-                variant="ghost"
-                className={cn(
-                  "rounded-lg",
-                  flagged[q.id] ? "bg-amber-50 text-amber-600 hover:bg-amber-100" : ""
-                )}
-                onClick={() => setFlagged((f) => ({ ...f, [q.id]: !f[q.id] }))}
-              >
-                <Flag className={cn("size-4", flagged[q.id] && "fill-amber-500")} />
-                {flagged[q.id] ? "Flagged" : "Flag for Review"}
-              </Button>
-
-              {idx < total - 1 ? (
-                <Button onClick={() => setIdx((i) => i + 1)} className="rounded-lg">
-                  Next <ChevronRight className="size-4" />
-                </Button>
-              ) : (
+              {/* Navigation - bottom of the card */}
+              <div className="shrink-0 flex items-center justify-between border-t border-zinc-200 px-6 py-3">
                 <Button
-                  onClick={() => setConfirmSubmit(true)}
-                  disabled={locked || submitting || answeredCount === 0}
-                  className="rounded-lg bg-green-600 hover:bg-green-700"
+                  variant="outline"
+                  disabled={idx === 0}
+                  onClick={() => setIdx((i) => i - 1)}
+                  className="rounded-lg"
                 >
-                  <Send className="size-4" /> Submit
+                  <ChevronLeft className="size-4" /> Previous
                 </Button>
-              )}
-            </div>
+
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "rounded-lg",
+                    flagged[q.id] ? "bg-amber-50 text-amber-600 hover:bg-amber-100" : ""
+                  )}
+                  onClick={() => setFlagged((f) => ({ ...f, [q.id]: !f[q.id] }))}
+                >
+                  <Flag className={cn("size-4", flagged[q.id] && "fill-amber-500")} />
+                  {flagged[q.id] ? "Flagged" : "Flag for Review"}
+                </Button>
+
+                {idx < total - 1 ? (
+                  <Button onClick={() => setIdx((i) => i + 1)} className="rounded-lg">
+                    Next <ChevronRight className="size-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => setConfirmSubmit(true)}
+                    disabled={locked || submitting || answeredCount === 0}
+                    className="rounded-lg bg-green-600 hover:bg-green-700"
+                  >
+                    <Send className="size-4" /> Submit
+                  </Button>
+                )}
+              </div>
+            </Card>
 
             {/* Presence Indicator */}
             <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-5 py-3.5 shadow-sm">

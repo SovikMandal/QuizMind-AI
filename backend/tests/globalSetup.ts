@@ -7,8 +7,8 @@ export default async function globalSetup() {
 
   // Create the test database (if missing) and sync the schema.
   execSync("npx prisma db push --skip-generate --accept-data-loss", {
-    env: { ...process.env, DATABASE_URL },
-    stdio: "ignore",
+    env: { ...process.env, DATABASE_URL, DIRECT_URL: DATABASE_URL },
+    stdio: "inherit",
   });
 
   const { PrismaClient } = await import("@prisma/client");

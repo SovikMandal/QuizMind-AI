@@ -256,6 +256,28 @@ export default function TakeQuiz() {
   const navigate = useNavigate();
   const state = (useLocation().state ?? null) as TakeState | null;
 
+  // Hide navbar and scrollbar when this page mounts
+  useEffect(() => {
+    // Hide navbar
+    const navbar = document.querySelector("nav");
+    if (navbar) (navbar as HTMLElement).style.display = "none";
+    // Hide scrollbar
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.documentElement.classList.add("hide-scrollbar");
+    document.body.classList.add("hide-scrollbar");
+
+    return () => {
+      // Restore navbar
+      if (navbar) (navbar as HTMLElement).style.display = "";
+      // Restore scrollbar
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+      document.documentElement.classList.remove("hide-scrollbar");
+      document.body.classList.remove("hide-scrollbar");
+    };
+  }, []);
+
   /* Fullscreen state */
   const [fullscreenGranted, setFullscreenGranted] = useState(false);
   const [fullscreenExited, setFullscreenExited] = useState(false);
@@ -426,7 +448,7 @@ export default function TakeQuiz() {
   const progressPercent = total ? (answeredCount / total) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-[#f8f9fb]">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-[#f8f9fb] overflow-y-auto scrollbar-hide">
       {/* Top Bar - Professional exam header */}
       <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white shadow-sm">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-3">

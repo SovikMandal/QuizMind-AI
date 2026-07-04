@@ -45,7 +45,7 @@ const protect = (el: React.ReactNode) => <ProtectedRoute>{el}</ProtectedRoute>;
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
-  const hideNavbar = pathname.startsWith("/take/");
+  const hideNavbar = pathname.startsWith("/take/") || pathname.startsWith("/play/");
   return (
     <>
       {!hideNavbar && <Navbar />}

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const generateQuestionsSchema = z.object({
-  topic: z.string().min(1).max(500),
+  topic: z.string().min(1).max(2000),
   difficulty: z.enum(["easy", "medium", "hard"]).default("medium"),
   count: z.number().int().min(1).max(70).default(5),
   questionType: z

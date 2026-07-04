@@ -115,9 +115,9 @@ function renderQuestionText(text: string, imageUrl?: string | null) {
       // Diagram blocks: render with strict whitespace preservation
       if (seg.lang === "diagram") {
         elements.push(
-          <div key={`diagram-${i}`} className="my-3 rounded-lg bg-blue-50 border border-blue-100 p-4 overflow-x-auto">
+          <div key={`diagram-${i}`} className="my-3 rounded-lg bg-blue-50 border border-blue-100 p-4">
             <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-blue-400">Diagram</div>
-            <pre className="text-sm font-mono leading-relaxed text-blue-900 whitespace-pre">
+            <pre className="text-sm font-mono leading-relaxed text-blue-900 whitespace-pre overflow-hidden">
               {seg.content}
             </pre>
           </div>
@@ -134,7 +134,7 @@ function renderQuestionText(text: string, imageUrl?: string | null) {
             .trim();
         }
         elements.push(
-          <div key={`code-${i}`} className="my-3 rounded-lg bg-zinc-50 border border-zinc-200 p-4 overflow-x-auto">
+          <div key={`code-${i}`} className="my-3 rounded-lg bg-zinc-50 border border-zinc-200 p-4">
             {seg.lang && <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{seg.lang}</div>}
             <pre className="text-sm font-mono leading-relaxed text-zinc-800 whitespace-pre-wrap break-words">
               <code>{code}</code>
@@ -266,12 +266,12 @@ function formatPlainText(text: string) {
   
   if (lines.length > 2) {
     const diagramIndicators = lines.filter(
-      (l) => /[/\\|_─┌┐└┘├┤┬┴┼]/.test(l) || /^\s{2,}\S/.test(l) || /\s{3,}/.test(l)
+      (l) => /[/\\|─┌┐└┘├┤┬┴┼]/.test(l) && /^\s{2,}/.test(l)
     ).length;
-    // If more than 30% of lines look like diagram lines, render as pre
-    if (diagramIndicators / lines.length > 0.3) {
+    // If more than 40% of lines look like diagram lines (have tree chars + leading spaces)
+    if (diagramIndicators / lines.length > 0.4) {
       return (
-        <pre className="my-2 rounded-lg bg-zinc-50 border border-zinc-200 p-3 text-sm font-mono leading-relaxed text-zinc-800 whitespace-pre overflow-x-auto">
+        <pre className="my-2 rounded-lg bg-zinc-50 border border-zinc-200 p-3 text-sm font-mono leading-relaxed text-zinc-800 whitespace-pre overflow-hidden">
           {text}
         </pre>
       );

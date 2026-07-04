@@ -26,6 +26,7 @@ import toast from "react-hot-toast";
 import type { QuestionInput } from "@/types";
 import { Button, Card, Input, Label, cn } from "@/components/ui";
 import { useAuth } from "@/stores/auth";
+import { useCreateQuiz } from "@/stores/createQuiz";
 
 const difficultyToQuizLevel = {
   easy: "beginner",
@@ -227,49 +228,52 @@ function QuestionEditor({
 
 export default function CreateQuiz() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
-
-  // Step 1 — details
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [subject, setSubject] = useState("");
-  const [difficulty, setDifficulty] = useState<Difficulty>("easy");
-  const [durationMins, setDurationMins] = useState(30);
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const [quizType, setQuizType] = useState<"public" | "private">("public");
-  const [password, setPassword] = useState("");
-  const [allowLateJoin, setAllowLateJoin] = useState(false);
-
-  // Step 2 — questions
-  const [topicPrompt, setTopicPrompt] = useState("");
-  const [count, setCount] = useState(10);
   const { user } = useAuth();
-  const maxAiQuestions = !user || user.tier === "free" ? 12 : 70;
-  const [questions, setQuestions] = useState<QuestionInput[]>([]);
 
-  const [generating, setGenerating] = useState(false);
+  // Persistent wizard state (survives navigation; AI generation runs in the store)
+  const {
+    step,
+    title,
+    description,
+    subject,
+    difficulty,
+    durationMins,
+    date,
+    time,
+    quizType,
+    password,
+    allowLateJoin,
+    topicPrompt,
+    count,
+    questions,
+    generating,
+    patch,
+    generate,
+    reset,
+  } = useCreateQuiz();
+
+  const setStep = (v: number) => patch({ step: v });
+  const setTitle = (v: string) => patch({ title: v });
+  const setDescription = (v: string) => patch({ description: v });
+  const setSubject = (v: string) => patch({ subject: v });
+  const setDifficulty = (v: Difficulty) => patch({ difficulty: v });
+  const setDurationMins = (v: number) => patch({ durationMins: v });
+  const setDate = (v: string) => patch({ date: v });
+  const setTime = (v: string) => patch({ time: v });
+  const setQuizType = (v: "public" | "private") => patch({ quizType: v });
+  const setPassword = (v: string) => patch({ password: v });
+  const setAllowLateJoin = (v: boolean) => patch({ allowLateJoin: v });
+  const setTopicPrompt = (v: string) => patch({ topicPrompt: v });
+  const setCount = (v: number) => patch({ count: v });
+  const setQuestions = (updater: (qs: QuestionInput[]) => QuestionInput[]) =>
+    patch({ questions: updater(useCreateQuiz.getState().questions) });
+
+  const maxAiQuestions = !user || user.tier === "free" ? 12 : 70;
+
   const [publishing, setPublishing] = useState(false);
 
   const step1Valid =
     !!title.trim() && !!subject && !!date && !!time && durationMins > 0 && (quizType === "public" || !!password);
-
-  const generate = async () => {
-    setGenerating(true);
-    try {
-      const res = await api.post("/ai/generate-questions", {
-        topic: topicPrompt,
-        difficulty,
-        count,
-        questionType: "multiple_choice",
-      });
-      setQuestions((qs) => [...qs, ...res.data.questions]);
-    } catch (err) {
-      toast.error(apiError(err, "Generation failed"));
-    } finally {
-      setGenerating(false);
-    }
-  };
 
   const publish = async () => {
     setPublishing(true);
@@ -289,6 +293,7 @@ export default function CreateQuiz() {
       await api.post(`/quizzes/${res.data.quiz.id}/publish`);
       const code = res.data.quiz.accessCode;
       toast.success(code ? `Published! Private access code: ${code}` : "Quiz published!");
+      reset();
       navigate("/dashboard");
     } catch (err) {
       toast.error(apiError(err, "Publish failed"));
@@ -504,6 +509,11 @@ export default function CreateQuiz() {
               <Button className="mt-4 w-full gap-2" onClick={generate} disabled={generating || !topicPrompt.trim()}>
                 <Sparkles className="size-4" /> {generating ? "Generating..." : "Generate Questions"}
               </Button>
+              {generating && (
+                <p className="mt-2 text-center text-xs text-[#2b7fff]">
+                  Generating in the background — you can leave this page and come back; your questions will be here.
+                </p>
+              )}
             </Card>
 
             <div className="my-8 flex items-center gap-4">

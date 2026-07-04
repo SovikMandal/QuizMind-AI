@@ -4,6 +4,7 @@ export type AIDifficulty = "easy" | "medium" | "hard";
 export interface GeneratedQuestion {
   content: string;
   diagram: string;
+  formula: string;
   code: string;
   codeLang: string;
   options: string[];

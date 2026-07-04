@@ -17,10 +17,11 @@ export function buildQuestionPrompt(
 Respond with a valid JSON array ONLY (no markdown, no extra text). Each item must have:
 [
   {
-    "content": "The question text here (plain text only, no code or diagrams in this field)",
-    "diagram": "ASCII diagram or tree structure if needed (use \\n for newlines), or empty string if not needed",
-    "code": "Code snippet if the question involves code (use \\n for newlines and proper indentation), or empty string if not needed",
-    "codeLang": "Language of the code (e.g. cpp, python, java, javascript), or empty string",
+    "content": "Plain text question only (no code, no diagrams, no formulas here)",
+    "diagram": "ASCII diagram if needed (trees, graphs, circuits, molecular structures, tables, flowcharts). Use \\n for newlines. Empty string if not needed.",
+    "formula": "Math equation or chemistry formula if needed (use LaTeX notation like E = mc^2 or H2SO4 + NaOH -> Na2SO4 + H2O). Empty string if not needed.",
+    "code": "Code snippet if needed with \\n for line breaks and proper indentation. Empty string if not needed.",
+    "codeLang": "Language of code (cpp, python, java, javascript, c, etc). Empty string if no code.",
     "options": ["Option A", "Option B", "Option C", "Option D"],
     "correctAnswer": "Option A",
     "explanation": "Why this is correct",
@@ -33,14 +34,26 @@ IMPORTANT RULES:
 - correctAnswer must exactly match one of the options.
 - For true/false questions, use ["True", "False"] as options.
 - For short answer questions, use an empty options array and put the answer in correctAnswer.
-- SEPARATE the question into 3 parts:
-  1. "content" = plain text question (e.g. "What is the output of the following code for this binary tree?")
-  2. "diagram" = any tree, graph, table, or structure as ASCII art with \\n for line breaks (e.g. "    1\\n   / \\\\\\n  2   3\\n / \\\\\\n4   5")
-  3. "code" = any code snippet with \\n for line breaks and proper indentation (e.g. "void traverse(Node* root) {\\n  if (root == NULL) return;\\n  cout << root->data;\\n  traverse(root->left);\\n  traverse(root->right);\\n}")
-- If question has no diagram, set "diagram" to ""
-- If question has no code, set "code" to ""
-- NEVER put code or diagrams inside the "content" field
-- Code must be properly formatted with line breaks, not on a single line`;
+
+STRUCTURED CONTENT RULES — SEPARATE the question into distinct fields:
+1. "content" = ONLY plain text question (e.g. "What is the product of the following reaction?" or "What is the output of this code for the given tree?")
+2. "formula" = ANY math or science formula/equation:
+   - Math: "x = (-b ± √(b²-4ac)) / 2a" or "∫₀¹ x² dx = 1/3"
+   - Chemistry: "2H2 + O2 -> 2H2O" or "CH3COOH + NaOH -> CH3COONa + H2O"  
+   - Physics: "F = ma" or "E = hν"
+   - Use -> for reaction arrows, subscript numbers as plain (H2O not H₂O)
+3. "diagram" = ANY visual structure as ASCII art with \\n for line breaks:
+   - Binary trees: "    1\\n   / \\\\\\n  2   3"
+   - Graphs: "A --5--> B --3--> C"
+   - Circuit diagrams: "R1 ---/\\/\\/--- R2"
+   - Molecular structures, state diagrams, flowcharts, tables
+   - Organic chemistry structures (benzene ring, carbon chains)
+4. "code" = ONLY programming code with proper formatting (\\n for newlines, 2-space indent)
+5. "codeLang" = language identifier for syntax context
+
+- NEVER put formulas, code, or diagrams inside "content"
+- A question can have multiple fields filled (e.g. both formula AND diagram)
+- Code must be multi-line with proper indentation, never single-line`;
 }
 
 /** Extracts and normalizes a JSON array of questions from a raw LLM response. */
@@ -52,6 +65,7 @@ export function parseQuestions(rawText: string): GeneratedQuestion[] {
   return parsed.map((q) => ({
     content: q.content ?? "Invalid question",
     diagram: q.diagram ?? "",
+    formula: q.formula ?? "",
     code: q.code ?? "",
     codeLang: q.codeLang ?? "",
     options: Array.isArray(q.options) ? q.options : [],

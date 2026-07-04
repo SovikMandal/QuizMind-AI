@@ -20,6 +20,9 @@ interface AppQuestion {
 function toAppQuestion(g: GeneratedQuestion, format: QuestionFormat): AppQuestion {
   // Build question text with separate sections
   let questionText = g.content;
+  if (g.formula) {
+    questionText += `\n\n$$${g.formula}$$`;
+  }
   if (g.diagram) {
     questionText += `\n\n\`\`\`diagram\n${g.diagram}\n\`\`\``;
   }

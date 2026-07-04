@@ -542,14 +542,14 @@ export default function TakeQuiz() {
 
       {/* ═══ MAIN CONTENT ═══ */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Question List (single column, one per row) */}
-        <aside className="hidden lg:flex w-[72px] shrink-0 flex-col border-r border-zinc-200 bg-white overflow-y-auto scrollbar-hide py-3">
+        {/* Left: Question List (single column, square cards, scrollable) */}
+        <aside className="hidden lg:flex w-[72px] shrink-0 flex-col border-r border-zinc-200 bg-white overflow-y-auto py-3 px-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d8 transparent' }}>
           {questions.map((_, i) => (
             <button
               key={i}
               onClick={() => setIdx(i)}
               className={cn(
-                "mx-auto mb-1 flex h-9 w-14 items-center justify-center rounded-lg text-xs font-semibold transition-all",
+                "mb-1.5 flex size-12 items-center justify-center rounded-lg text-xs font-semibold transition-all shrink-0",
                 chipClass(i)
               )}
             >

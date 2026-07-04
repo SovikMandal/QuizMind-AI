@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Check } from "lucide-react";
 import { api } from "@/lib/api";
+import { useAuth } from "@/stores/auth";
 import { cn } from "./ui";
 
 interface Notif {
@@ -16,19 +17,22 @@ interface Notif {
 
 export function NotificationBell() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notif[]>([]);
   const [unread, setUnread] = useState(0);
 
   const loadCount = useCallback(() => {
+    if (!user) return;
     api.get("/notifications/unread-count").then((r) => setUnread(r.data.count)).catch(() => {});
-  }, []);
+  }, [user]);
 
   useEffect(() => {
+    if (!user) return;
     loadCount();
     const id = setInterval(loadCount, 30000);
     return () => clearInterval(id);
-  }, [loadCount]);
+  }, [loadCount, user]);
 
   const toggle = async () => {
     const next = !open;

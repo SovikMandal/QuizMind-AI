@@ -201,10 +201,26 @@ function renderRichText(text: string) {
   return <>{parts}</>;
 }
 
-/* Format plain text: handle newlines, chemical arrows, subscripts/superscripts */
+/* Format plain text: handle newlines, ASCII diagrams, chemical arrows, subscripts/superscripts */
 function formatPlainText(text: string) {
-  // Replace common patterns
+  // Detect ASCII art/diagrams (trees, tables, box drawings)
+  // Patterns: multiple lines with / \ | _ characters used for structure, or significant leading spaces
   const lines = text.split("\n");
+  
+  if (lines.length > 2) {
+    const diagramIndicators = lines.filter(
+      (l) => /[/\\|_─┌┐└┘├┤┬┴┼]/.test(l) || /^\s{2,}\S/.test(l) || /\s{3,}/.test(l)
+    ).length;
+    // If more than 30% of lines look like diagram lines, render as pre
+    if (diagramIndicators / lines.length > 0.3) {
+      return (
+        <pre className="my-2 rounded-lg bg-zinc-50 border border-zinc-200 p-3 text-sm font-mono leading-relaxed text-zinc-800 whitespace-pre overflow-x-auto">
+          {text}
+        </pre>
+      );
+    }
+  }
+
   if (lines.length <= 1) return <>{formatChemistry(text)}</>;
 
   return (

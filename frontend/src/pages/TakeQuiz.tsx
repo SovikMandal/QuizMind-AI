@@ -164,34 +164,48 @@ function renderQuestionText(text: string, imageUrl?: string | null) {
 /* Clean LaTeX formula into readable format */
 function cleanFormula(latex: string): string {
   return latex
-    // Fractions: \frac{a}{b} → a/b
-    .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, "($1)/($2)")
-    // Square root: \sqrt{x} → √(x)
-    .replace(/\\sqrt\{([^}]*)\}/g, "√($1)")
+    // Common fractions: \frac{1}{2} → ½, \frac{1}{3} → ⅓, etc.
+    .replace(/\\frac\{1\}\{2\}/g, "½")
+    .replace(/\\frac\{1\}\{3\}/g, "⅓")
+    .replace(/\\frac\{1\}\{4\}/g, "¼")
+    .replace(/\\frac\{3\}\{4\}/g, "¾")
+    .replace(/\\frac\{1\}\{8\}/g, "⅛")
+    // General fractions: \frac{a}{b} → a/b
+    .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, "$1/$2")
+    // Square root: \sqrt{x} → √x
+    .replace(/\\sqrt\{([^}]*)\}/g, "√$1")
     .replace(/\\sqrt/g, "√")
     // Greek letters
     .replace(/\\alpha/g, "α").replace(/\\beta/g, "β").replace(/\\gamma/g, "γ")
-    .replace(/\\delta/g, "δ").replace(/\\theta/g, "θ").replace(/\\lambda/g, "λ")
-    .replace(/\\mu/g, "μ").replace(/\\pi/g, "π").replace(/\\sigma/g, "σ")
-    .replace(/\\omega/g, "ω").replace(/\\phi/g, "φ").replace(/\\epsilon/g, "ε")
-    .replace(/\\nu/g, "ν").replace(/\\rho/g, "ρ").replace(/\\tau/g, "τ")
+    .replace(/\\delta/g, "δ").replace(/\\Delta/g, "Δ").replace(/\\theta/g, "θ")
+    .replace(/\\lambda/g, "λ").replace(/\\mu/g, "μ").replace(/\\pi/g, "π")
+    .replace(/\\sigma/g, "σ").replace(/\\omega/g, "ω").replace(/\\phi/g, "φ")
+    .replace(/\\epsilon/g, "ε").replace(/\\nu/g, "ν").replace(/\\rho/g, "ρ")
+    .replace(/\\tau/g, "τ")
     // Operators
-    .replace(/\\times/g, "×").replace(/\\div/g, "÷").replace(/\\pm/g, "±")
+    .replace(/\\times/g, "×").replace(/\\cdot/g, "·").replace(/\\div/g, "÷")
+    .replace(/\\pm/g, "±").replace(/\\mp/g, "∓")
     .replace(/\\leq/g, "≤").replace(/\\geq/g, "≥").replace(/\\neq/g, "≠")
-    .replace(/\\approx/g, "≈").replace(/\\infty/g, "∞")
+    .replace(/\\approx/g, "≈").replace(/\\infty/g, "∞").replace(/\\propto/g, "∝")
     .replace(/\\rightarrow/g, "→").replace(/\\leftarrow/g, "←").replace(/\\to/g, "→")
+    .replace(/\\Rightarrow/g, "⇒").replace(/\\Leftarrow/g, "⇐")
     // Integrals and sums
-    .replace(/\\int_\{([^}]*)\}\^\{([^}]*)\}/g, "∫[$1 to $2]")
+    .replace(/\\int_\{([^}]*)\}\^\{([^}]*)\}/g, "∫[$1→$2]")
     .replace(/\\int/g, "∫")
-    .replace(/\\sum_\{([^}]*)\}\^\{([^}]*)\}/g, "Σ[$1 to $2]")
+    .replace(/\\sum_\{([^}]*)\}\^\{([^}]*)\}/g, "Σ[$1→$2]")
     .replace(/\\sum/g, "Σ")
+    .replace(/\\prod/g, "∏")
     // Limits
     .replace(/\\lim_\{([^}]*)\}/g, "lim($1)")
     .replace(/\\lim/g, "lim")
-    // Superscript/subscript: x^{2} → x², x_{i} → xᵢ
-    .replace(/\^{([^}]*)}/g, "^($1)")
-    .replace(/_{([^}]*)}/g, "_($1)")
+    // Superscripts: x^{2} → x², common powers
+    .replace(/\^\{2\}/g, "²").replace(/\^\{3\}/g, "³").replace(/\^\{n\}/g, "ⁿ")
+    .replace(/\^\{-1\}/g, "⁻¹").replace(/\^\{-2\}/g, "⁻²")
+    .replace(/\^\{([^}]*)\}/g, "^$1")
     .replace(/\^2/g, "²").replace(/\^3/g, "³").replace(/\^n/g, "ⁿ")
+    // Subscripts: x_{i} → xᵢ
+    .replace(/_\{([^}]*)\}/g, "₍$1₎")
+    .replace(/_0/g, "₀").replace(/_1/g, "₁").replace(/_2/g, "₂")
     // Clean up remaining LaTeX commands
     .replace(/\\text\{([^}]*)\}/g, "$1")
     .replace(/\\mathrm\{([^}]*)\}/g, "$1")

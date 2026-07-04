@@ -24,7 +24,7 @@ import { TakeQuizSkeleton } from "@/components/TakeQuizSkeleton";
 
 /* ─── Types ─── */
 interface Opt { id: string; text: string }
-interface Q { id: string; questionText: string; questionType: string; options?: Opt[]; difficulty?: string }
+interface Q { id: string; questionText: string; questionType: string; options?: Opt[]; difficulty?: string; imageUrl?: string | null }
 interface TakeState {
   participantId: string;
   questions: Q[];
@@ -85,79 +85,163 @@ function isFullscreen() {
   );
 }
 
-/* ─── Render question text with code formatting ─── */
-function renderQuestionText(text: string) {
+/* ─── Render question text with code, math, chemistry formatting ─── */
+function renderQuestionText(text: string, imageUrl?: string | null) {
+  const elements: React.ReactNode[] = [];
+
   // Split by triple backtick code blocks: ```lang\ncode\n```
   const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
+  let remaining = text;
+  let blockMatch: RegExpExecArray | null;
+  let lastIdx = 0;
+  const segments: { type: "text" | "code"; content: string; lang?: string; start: number }[] = [];
+
+  while ((blockMatch = codeBlockRegex.exec(text)) !== null) {
+    if (blockMatch.index > lastIdx) {
+      segments.push({ type: "text", content: text.slice(lastIdx, blockMatch.index), start: lastIdx });
+    }
+    segments.push({ type: "code", content: blockMatch[2].trim(), lang: blockMatch[1], start: blockMatch.index });
+    lastIdx = blockMatch.index + blockMatch[0].length;
+  }
+  if (lastIdx < text.length) {
+    segments.push({ type: "text", content: text.slice(lastIdx), start: lastIdx });
+  }
+  if (segments.length === 0) {
+    segments.push({ type: "text", content: text, start: 0 });
+  }
+
+  segments.forEach((seg, i) => {
+    if (seg.type === "code") {
+      elements.push(
+        <div key={`code-${i}`} className="my-3 rounded-lg bg-[#1e1e2e] p-4 overflow-x-auto">
+          {seg.lang && <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{seg.lang}</div>}
+          <pre className="text-sm font-mono leading-relaxed text-[#cdd6f4] whitespace-pre-wrap break-words">
+            <code>{seg.content}</code>
+          </pre>
+        </div>
+      );
+    } else {
+      elements.push(
+        <span key={`text-${i}`}>{renderRichText(seg.content)}</span>
+      );
+    }
+  });
+
+  return (
+    <>
+      {elements}
+      {imageUrl && (
+        <div className="mt-4 rounded-lg border border-zinc-200 overflow-hidden bg-white">
+          <img src={imageUrl} alt="Question diagram" className="w-full h-auto max-h-[300px] object-contain" />
+        </div>
+      )}
+    </>
+  );
+}
+
+/* Render inline formatting: `code`, $math$, $$math$$, chemical formulas */
+function renderRichText(text: string) {
+  // Regex to match: $$block math$$, $inline math$, `inline code`, chemical arrows (→, ⇌)
+  const tokenRegex = /(\$\$[\s\S]*?\$\$|\$[^$\n]+?\$|`[^`]+`)/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = codeBlockRegex.exec(text)) !== null) {
-    // Text before code block
+  while ((match = tokenRegex.exec(text)) !== null) {
+    // Text before token
     if (match.index > lastIndex) {
+      parts.push(<span key={`r-${lastIndex}`}>{formatPlainText(text.slice(lastIndex, match.index))}</span>);
+    }
+
+    const token = match[1];
+    if (token.startsWith("$$") && token.endsWith("$$")) {
+      // Block math (LaTeX)
+      const math = token.slice(2, -2).trim();
       parts.push(
-        <span key={`t-${lastIndex}`}>
-          {renderInlineCode(text.slice(lastIndex, match.index))}
+        <div key={`bm-${match.index}`} className="my-3 rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-center overflow-x-auto">
+          <span className="font-mono text-base text-blue-900 italic">{math}</span>
+        </div>
+      );
+    } else if (token.startsWith("$") && token.endsWith("$")) {
+      // Inline math
+      const math = token.slice(1, -1);
+      parts.push(
+        <span key={`im-${match.index}`} className="mx-0.5 rounded bg-blue-50 px-1.5 py-0.5 font-mono text-[14px] text-blue-800 italic">
+          {math}
         </span>
       );
+    } else if (token.startsWith("`") && token.endsWith("`")) {
+      // Inline code
+      const code = token.slice(1, -1);
+      parts.push(
+        <code key={`ic-${match.index}`} className="mx-0.5 rounded-md bg-zinc-100 px-1.5 py-0.5 text-[14px] font-mono font-medium text-rose-600">
+          {code}
+        </code>
+      );
     }
-    // Code block
-    const lang = match[1] || "";
-    const code = match[2].trim();
-    parts.push(
-      <div key={`c-${match.index}`} className="my-3 rounded-lg bg-[#1e1e2e] p-4 overflow-x-auto">
-        {lang && <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{lang}</div>}
-        <pre className="text-sm font-mono leading-relaxed text-[#cdd6f4] whitespace-pre-wrap break-words">
-          <code>{code}</code>
-        </pre>
-      </div>
-    );
+
     lastIndex = match.index + match[0].length;
   }
 
-  // Remaining text
   if (lastIndex < text.length) {
-    parts.push(
-      <span key={`t-${lastIndex}`}>
-        {renderInlineCode(text.slice(lastIndex))}
+    parts.push(<span key={`r-${lastIndex}`}>{formatPlainText(text.slice(lastIndex))}</span>);
+  }
+
+  if (parts.length === 0) return <>{formatPlainText(text)}</>;
+  return <>{parts}</>;
+}
+
+/* Format plain text: handle newlines, chemical arrows, subscripts/superscripts */
+function formatPlainText(text: string) {
+  // Replace common patterns
+  const lines = text.split("\n");
+  if (lines.length <= 1) return <>{formatChemistry(text)}</>;
+
+  return (
+    <>
+      {lines.map((line, i) => (
+        <span key={i}>
+          {i > 0 && <br />}
+          {formatChemistry(line)}
+        </span>
+      ))}
+    </>
+  );
+}
+
+/* Format chemistry: arrows, subscripts (H2O → H₂O), superscripts */
+function formatChemistry(text: string) {
+  // Detect chemical-like patterns and format them
+  // Replace common arrow notations
+  let formatted = text
+    .replace(/->/g, "→")
+    .replace(/<->/g, "⇌")
+    .replace(/<=>/g, "⇌");
+
+  // Check if it looks like a chemical equation (contains element symbols + numbers or arrows)
+  const isChemical = /([A-Z][a-z]?\d*[→⇌+])|(\b(H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Fe|Cu|Zn|Ag|Au|Pb)\d*\b.*[→⇌+])/.test(formatted);
+
+  if (isChemical) {
+    // Format subscript numbers in chemical formulas (e.g., H2O → H₂O)
+    const subscriptMap: Record<string, string> = { "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄", "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉" };
+    formatted = formatted.replace(/([A-Z][a-z]?)(\d+)/g, (_, el, num) => {
+      const sub = num.split("").map((d: string) => subscriptMap[d] || d).join("");
+      return el + sub;
+    });
+    // Format superscript charges (e.g., Fe2+ → Fe²⁺)
+    const superscriptMap: Record<string, string> = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "+": "⁺", "-": "⁻" };
+    formatted = formatted.replace(/(\d*[+-])(?=\s|$|→|⇌)/g, (match) => {
+      return match.split("").map((c) => superscriptMap[c] || c).join("");
+    });
+
+    return (
+      <span className="rounded bg-emerald-50 px-2 py-0.5 font-mono text-[15px] text-emerald-800 border border-emerald-100">
+        {formatted}
       </span>
     );
   }
 
-  // If no code blocks found, check for inline code
-  if (parts.length === 0) {
-    return <>{renderInlineCode(text)}</>;
-  }
-
-  return <>{parts}</>;
-}
-
-function renderInlineCode(text: string) {
-  // Split by single backtick inline code: `code`
-  const inlineRegex = /`([^`]+)`/g;
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = inlineRegex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(<span key={`i-${lastIndex}`}>{text.slice(lastIndex, match.index)}</span>);
-    }
-    parts.push(
-      <code key={`ic-${match.index}`} className="mx-0.5 rounded-md bg-zinc-100 px-1.5 py-0.5 text-[14px] font-mono font-medium text-rose-600">
-        {match[1]}
-      </code>
-    );
-    lastIndex = match.index + match[0].length;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(<span key={`i-${lastIndex}`}>{text.slice(lastIndex)}</span>);
-  }
-
-  if (parts.length === 0) return <>{text}</>;
-  return <>{parts}</>;
+  return <>{formatted}</>;
 }
 
 /* ─── Fullscreen Permission Gate ─── */
@@ -660,7 +744,7 @@ export default function TakeQuiz() {
                     <span className="ml-auto text-xs font-medium text-zinc-400">{idx + 1} / {total}</span>
                   </div>
                   <div className="text-lg font-semibold leading-relaxed text-zinc-900 overflow-y-auto scrollbar-hide flex-1">
-                    {renderQuestionText(q.questionText)}
+                    {renderQuestionText(q.questionText, q.imageUrl)}
                   </div>
                 </div>
 

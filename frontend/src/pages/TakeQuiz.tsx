@@ -752,7 +752,7 @@ export default function TakeQuiz() {
             <button
               onClick={() => setConfirmSubmit(true)}
               disabled={submitting || answeredCount === 0 || locked}
-              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-green-600 to-green-700 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-green-600/20 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:shadow-none"
+              className="flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-50 disabled:shadow-none cursor-pointer"
             >
               <Send className="size-4" /> {submitting ? "Submitting..." : "Submit"}
             </button>
@@ -761,8 +761,8 @@ export default function TakeQuiz() {
       </header>
 
       {/* ═══ STATS BAR + PROGRESS ═══ */}
-      <div className="shrink-0 border-b border-zinc-200 bg-white px-6 py-3">
-        <div className="flex items-center justify-between">
+      <div className="shrink-0 border-b border-zinc-200 bg-white px-6 py-2.5">
+        <div className="flex items-center gap-6">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
               <span className="size-2.5 rounded-full bg-[#2b7fff]" />
@@ -777,14 +777,16 @@ export default function TakeQuiz() {
               <span className="text-xs font-medium text-zinc-600">Unanswered: <span className="font-bold text-zinc-900">{total - answeredCount}</span></span>
             </div>
           </div>
-          <span className="text-xs font-bold text-[#2b7fff]">{answeredCount}/{total} completed</span>
-        </div>
-        {/* Progress line bar */}
-        <div className="mt-2 h-1.5 w-full rounded-full bg-zinc-100">
-          <div
-            className="h-1.5 rounded-full bg-gradient-to-r from-[#2b7fff] to-[#1a6ef0] transition-all duration-500"
-            style={{ width: `${progressPercent}%` }}
-          />
+          {/* Progress line + count on right */}
+          <div className="flex-1 flex items-center gap-3 justify-end">
+            <div className="w-48 h-1.5 rounded-full bg-zinc-100">
+              <div
+                className="h-1.5 rounded-full bg-gradient-to-r from-[#2b7fff] to-[#1a6ef0] transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <span className="text-xs font-bold text-[#2b7fff]">{answeredCount}/{total} completed</span>
+          </div>
         </div>
       </div>
 
@@ -799,17 +801,17 @@ export default function TakeQuiz() {
       {/* ═══ MAIN CONTENT ═══ */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Question List (single column, square cards, scrollable) */}
-        <aside className="hidden lg:flex w-[72px] shrink-0 flex-col border-r border-zinc-200 bg-white overflow-y-auto py-3 px-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d8 transparent' }}>
+        <aside className="hidden lg:flex w-[60px] shrink-0 flex-col items-center border-r border-zinc-200 bg-white overflow-y-auto py-3" style={{ scrollbarWidth: 'thin', scrollbarColor: '#d4d4d8 transparent' }}>
           {questions.map((_, i) => (
             <button
               key={i}
               onClick={() => setIdx(i)}
               className={cn(
-                "mb-1.5 flex size-12 items-center justify-center rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer",
+                "mb-2 flex size-10 items-center justify-center rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer",
                 chipClass(i)
               )}
             >
-              Q{i + 1}
+              {i + 1}
             </button>
           ))}
         </aside>
@@ -820,10 +822,10 @@ export default function TakeQuiz() {
             {/* Single Card covering everything */}
             <Card className="border-0 shadow-none rounded-none border-l-0 flex-1 flex flex-col overflow-hidden">
               {/* Two Column: Question (40%) | Options (60%) */}
-              <div className="flex-1 grid lg:grid-cols-[40%_60%] min-h-0">
+              <div className="flex-1 grid lg:grid-cols-[40%_60%] min-h-0 overflow-y-auto scrollbar-hide">
                 {/* Column 1: Question */}
-                <div className="p-6 lg:p-8 flex flex-col border-r border-zinc-200">
-                  <div className="flex items-center gap-2 mb-4">
+                <div className="p-5 flex flex-col border-r border-zinc-200">
+                  <div className="flex items-center flex-wrap gap-2 mb-4">
                     <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#2b7fff] to-[#1a6ef0] text-xs font-bold text-white">
                       {idx + 1}
                     </span>
@@ -838,15 +840,22 @@ export default function TakeQuiz() {
                         {q.difficulty}
                       </Badge>
                     )}
+                    {state.subject && (
+                      <Badge className="bg-blue-50 border border-blue-200 text-blue-700">{state.subject}</Badge>
+                    )}
                     <span className="ml-auto text-xs font-medium text-zinc-400">{idx + 1} / {total}</span>
                   </div>
-                  <div className="text-lg font-semibold leading-relaxed text-zinc-900 flex-1">
-                    {renderQuestionText(q.questionText, q.imageUrl)}
+                  {/* Question text in bordered box */}
+                  <div className="rounded-xl border border-dashed border-zinc-300 p-4 mb-3">
+                    <div className="text-[15px] font-medium leading-relaxed text-zinc-800">
+                      {renderQuestionText(q.questionText, q.imageUrl)}
+                    </div>
                   </div>
                 </div>
 
                 {/* Column 2: Options */}
-                <div className="p-6 lg:p-8 flex flex-col">
+                <div className="p-5 flex flex-col">
+                  <h3 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 mb-4">Select your answer</h3>
                   {q.options && q.options.length ? (
                     <div className="flex flex-col gap-3 flex-1">
                       {q.options.map((o, i) => {
@@ -897,8 +906,8 @@ export default function TakeQuiz() {
                 </div>
               </div>
 
-              {/* Navigation - bottom of the card */}
-              <div className="shrink-0 flex items-center justify-between border-t border-zinc-200 px-6 py-3">
+              {/* Navigation - pinned at bottom */}
+              <div className="shrink-0 flex items-center justify-between border-t border-zinc-200 px-6 py-3 bg-white">
                 <Button
                   variant="outline"
                   disabled={idx === 0}
@@ -921,14 +930,14 @@ export default function TakeQuiz() {
                 </Button>
 
                 {idx < total - 1 ? (
-                  <Button onClick={() => setIdx((i) => i + 1)} className="rounded-lg">
+                  <Button onClick={() => setIdx((i) => i + 1)} className="rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white">
                     Next <ChevronRight className="size-4" />
                   </Button>
                 ) : (
                   <Button
                     onClick={() => setConfirmSubmit(true)}
                     disabled={locked || submitting || answeredCount === 0}
-                    className="rounded-lg bg-green-600 hover:bg-green-700"
+                    className="rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white"
                   >
                     <Send className="size-4" /> Submit
                   </Button>

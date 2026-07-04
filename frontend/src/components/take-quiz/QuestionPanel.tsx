@@ -76,8 +76,8 @@ export function QuestionPanel({
   );
 
   const Formula = parsed.formula ? (
-    <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-center">
-      <p className="font-mono text-base text-blue-800 tracking-wide">{parsed.formula}</p>
+    <div className="rounded-xl bg-blue-50 border border-blue-100 px-6 py-5 text-center">
+      <p className="font-mono text-xl md:text-2xl text-blue-800 tracking-wide leading-relaxed">{parsed.formula}</p>
     </div>
   ) : null;
 

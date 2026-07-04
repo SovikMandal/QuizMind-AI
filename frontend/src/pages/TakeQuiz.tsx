@@ -161,6 +161,48 @@ function renderQuestionText(text: string, imageUrl?: string | null) {
   );
 }
 
+/* Clean LaTeX formula into readable format */
+function cleanFormula(latex: string): string {
+  return latex
+    // Fractions: \frac{a}{b} → a/b
+    .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, "($1)/($2)")
+    // Square root: \sqrt{x} → √(x)
+    .replace(/\\sqrt\{([^}]*)\}/g, "√($1)")
+    .replace(/\\sqrt/g, "√")
+    // Greek letters
+    .replace(/\\alpha/g, "α").replace(/\\beta/g, "β").replace(/\\gamma/g, "γ")
+    .replace(/\\delta/g, "δ").replace(/\\theta/g, "θ").replace(/\\lambda/g, "λ")
+    .replace(/\\mu/g, "μ").replace(/\\pi/g, "π").replace(/\\sigma/g, "σ")
+    .replace(/\\omega/g, "ω").replace(/\\phi/g, "φ").replace(/\\epsilon/g, "ε")
+    .replace(/\\nu/g, "ν").replace(/\\rho/g, "ρ").replace(/\\tau/g, "τ")
+    // Operators
+    .replace(/\\times/g, "×").replace(/\\div/g, "÷").replace(/\\pm/g, "±")
+    .replace(/\\leq/g, "≤").replace(/\\geq/g, "≥").replace(/\\neq/g, "≠")
+    .replace(/\\approx/g, "≈").replace(/\\infty/g, "∞")
+    .replace(/\\rightarrow/g, "→").replace(/\\leftarrow/g, "←").replace(/\\to/g, "→")
+    // Integrals and sums
+    .replace(/\\int_\{([^}]*)\}\^\{([^}]*)\}/g, "∫[$1 to $2]")
+    .replace(/\\int/g, "∫")
+    .replace(/\\sum_\{([^}]*)\}\^\{([^}]*)\}/g, "Σ[$1 to $2]")
+    .replace(/\\sum/g, "Σ")
+    // Limits
+    .replace(/\\lim_\{([^}]*)\}/g, "lim($1)")
+    .replace(/\\lim/g, "lim")
+    // Superscript/subscript: x^{2} → x², x_{i} → xᵢ
+    .replace(/\^{([^}]*)}/g, "^($1)")
+    .replace(/_{([^}]*)}/g, "_($1)")
+    .replace(/\^2/g, "²").replace(/\^3/g, "³").replace(/\^n/g, "ⁿ")
+    // Clean up remaining LaTeX commands
+    .replace(/\\text\{([^}]*)\}/g, "$1")
+    .replace(/\\mathrm\{([^}]*)\}/g, "$1")
+    .replace(/\\left/g, "").replace(/\\right/g, "")
+    .replace(/\\\\/g, "")
+    .replace(/\\,/g, " ").replace(/\\;/g, " ").replace(/\\quad/g, "  ")
+    // Chemistry arrows
+    .replace(/->/g, "→").replace(/<->/g, "⇌")
+    .trim();
+}
+
 /* Render inline formatting: `code`, $math$, $$math$$, chemical formulas */
 function renderRichText(text: string) {
   // Regex to match: $$block math$$, $inline math$, `inline code`, chemical arrows (→, ⇌)
@@ -177,19 +219,22 @@ function renderRichText(text: string) {
 
     const token = match[1];
     if (token.startsWith("$$") && token.endsWith("$$")) {
-      // Block math (LaTeX)
+      // Block math/formula
       const math = token.slice(2, -2).trim();
+      // Clean up LaTeX notation into readable format
+      const readable = cleanFormula(math);
       parts.push(
-        <div key={`bm-${match.index}`} className="my-3 rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-center overflow-x-auto">
-          <span className="font-mono text-base text-blue-900 italic">{math}</span>
+        <div key={`bm-${match.index}`} className="my-3 rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-center">
+          <span className="font-mono text-base text-blue-900">{readable}</span>
         </div>
       );
     } else if (token.startsWith("$") && token.endsWith("$")) {
       // Inline math
       const math = token.slice(1, -1);
+      const readable = cleanFormula(math);
       parts.push(
-        <span key={`im-${match.index}`} className="mx-0.5 rounded bg-blue-50 px-1.5 py-0.5 font-mono text-[14px] text-blue-800 italic">
-          {math}
+        <span key={`im-${match.index}`} className="mx-0.5 rounded bg-blue-50 px-1.5 py-0.5 font-mono text-[14px] text-blue-800">
+          {readable}
         </span>
       );
     } else if (token.startsWith("`") && token.endsWith("`")) {
@@ -781,7 +826,7 @@ export default function TakeQuiz() {
                     )}
                     <span className="ml-auto text-xs font-medium text-zinc-400">{idx + 1} / {total}</span>
                   </div>
-                  <div className="text-lg font-semibold leading-relaxed text-zinc-900 overflow-y-auto scrollbar-hide flex-1">
+                  <div className="text-lg font-semibold leading-relaxed text-zinc-900 flex-1">
                     {renderQuestionText(q.questionText, q.imageUrl)}
                   </div>
                 </div>

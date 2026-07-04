@@ -73,7 +73,7 @@ export default function App() {
       <AppLayout>
       <Suspense fallback={<Spinner />}>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<PublicOnlyRoute><Landing /></PublicOnlyRoute>} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
           <Route path="/signup" element={<PublicOnlyRoute><Signup /></PublicOnlyRoute>} />

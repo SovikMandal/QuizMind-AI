@@ -58,7 +58,13 @@ export const AiService = {
       throw new ApiError(403, `Your plan allows up to ${max} AI-generated questions per quiz. Upgrade for more.`);
     }
     const provider = (cached ??= getAIProvider());
-    const generated = await provider.generateQuestions(input.topic, input.difficulty, input.count, input.questionType);
-    return generated.map((g) => toAppQuestion(g, input.questionType));
+    try {
+      const generated = await provider.generateQuestions(input.topic, input.difficulty, input.count, input.questionType);
+      return generated.map((g) => toAppQuestion(g, input.questionType));
+    } catch (err: any) {
+      const message = err?.message || "AI generation failed";
+      const status = err?.status || 502;
+      throw new ApiError(status, message);
+    }
   },
 };

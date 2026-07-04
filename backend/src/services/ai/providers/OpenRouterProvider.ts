@@ -1,11 +1,13 @@
 import { AIProvider, GeneratedQuestion, QuestionFormat, AIDifficulty } from "../AIProvider";
 import { buildQuestionPrompt, parseQuestions } from "../prompt";
+import { logger } from "../../../utils/logger";
 
-/** OpenRouter (OpenAI-compatible chat completions). Default model: openrouter/owl-alpha. */
+/** OpenRouter (OpenAI-compatible chat completions). Default model: google/gemma-4-31b-it:free. */
 export class OpenRouterProvider implements AIProvider {
-  constructor(private apiKey: string, private model = "openrouter/owl-alpha") {}
+  constructor(private apiKey: string, private model = "google/gemma-4-31b-it:free") {}
 
   private async ask(prompt: string): Promise<string> {
+    logger.info(`OpenRouter: requesting model=${this.model}`);
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -15,12 +17,19 @@ export class OpenRouterProvider implements AIProvider {
       body: JSON.stringify({ model: this.model, messages: [{ role: "user", content: prompt }] }),
     });
     if (!res.ok) {
-      const err = new Error(`OpenRouter error ${res.status}: ${await res.text()}`) as Error & { status?: number };
+      const errorText = await res.text();
+      logger.error(`OpenRouter error ${res.status}: ${errorText}`);
+      const err = new Error(`OpenRouter error ${res.status}: ${errorText}`) as Error & { status?: number };
       err.status = res.status;
       throw err;
     }
     const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    return data.choices?.[0]?.message?.content ?? "";
+    const content = data.choices?.[0]?.message?.content ?? "";
+    if (!content) {
+      logger.error("OpenRouter returned empty response");
+      throw new Error("AI returned empty response. Please try again.");
+    }
+    return content;
   }
 
   async generateQuestions(

@@ -7,7 +7,6 @@ interface Props {
   subject?: string | null;
   difficulty?: string | null;
   timeLeft: number;
-  connected: boolean;
   isLive: boolean;
   violations: number;
   submitting: boolean;
@@ -20,7 +19,6 @@ export function QuizHeader({
   subject,
   difficulty,
   timeLeft,
-  connected,
   isLive,
   violations,
   submitting,
@@ -60,10 +58,6 @@ export function QuizHeader({
 
         {/* Right: Status + Submit */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-lg bg-zinc-50 px-3 py-2">
-            <div className={cn("size-2 rounded-full", connected ? "bg-green-500 animate-pulse" : "bg-zinc-300")} />
-            <span className="text-xs font-medium text-zinc-600">{connected ? "Live" : "..."}</span>
-          </div>
           {isLive && (
             <div className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2">
               <Radio className="size-3 text-red-500 animate-pulse" />

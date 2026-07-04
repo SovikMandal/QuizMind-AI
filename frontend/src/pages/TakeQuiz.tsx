@@ -46,7 +46,6 @@ export default function TakeQuiz() {
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
   const [idx, setIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [connected, setConnected] = useState(false);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
 
   const questions = useMemo(() => state?.questions ?? [], [state]);
@@ -145,10 +144,8 @@ export default function TakeQuiz() {
   useEffect(() => {
     const socket = connectQuizSocket();
     socket.on("connect", () => {
-      setConnected(true);
       socket.emit("presence_join", { sessionId });
     });
-    socket.on("disconnect", () => setConnected(false));
     return () => {
       socket.disconnect();
     };
@@ -198,7 +195,6 @@ export default function TakeQuiz() {
         subject={state.subject}
         difficulty={state.difficulty}
         timeLeft={timeLeft}
-        connected={connected}
         isLive={isLive}
         violations={violations}
         submitting={submitting}

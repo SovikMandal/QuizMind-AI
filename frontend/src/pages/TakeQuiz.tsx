@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Radio,
@@ -83,6 +83,81 @@ function isFullscreen() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (document as any).msFullscreenElement
   );
+}
+
+/* ─── Render question text with code formatting ─── */
+function renderQuestionText(text: string) {
+  // Split by triple backtick code blocks: ```lang\ncode\n```
+  const codeBlockRegex = /```(\w*)\n?([\s\S]*?)```/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = codeBlockRegex.exec(text)) !== null) {
+    // Text before code block
+    if (match.index > lastIndex) {
+      parts.push(
+        <span key={`t-${lastIndex}`}>
+          {renderInlineCode(text.slice(lastIndex, match.index))}
+        </span>
+      );
+    }
+    // Code block
+    const lang = match[1] || "";
+    const code = match[2].trim();
+    parts.push(
+      <div key={`c-${match.index}`} className="my-3 rounded-lg bg-[#1e1e2e] p-4 overflow-x-auto">
+        {lang && <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{lang}</div>}
+        <pre className="text-sm font-mono leading-relaxed text-[#cdd6f4] whitespace-pre-wrap break-words">
+          <code>{code}</code>
+        </pre>
+      </div>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Remaining text
+  if (lastIndex < text.length) {
+    parts.push(
+      <span key={`t-${lastIndex}`}>
+        {renderInlineCode(text.slice(lastIndex))}
+      </span>
+    );
+  }
+
+  // If no code blocks found, check for inline code
+  if (parts.length === 0) {
+    return <>{renderInlineCode(text)}</>;
+  }
+
+  return <>{parts}</>;
+}
+
+function renderInlineCode(text: string) {
+  // Split by single backtick inline code: `code`
+  const inlineRegex = /`([^`]+)`/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = inlineRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={`i-${lastIndex}`}>{text.slice(lastIndex, match.index)}</span>);
+    }
+    parts.push(
+      <code key={`ic-${match.index}`} className="mx-0.5 rounded-md bg-zinc-100 px-1.5 py-0.5 text-[14px] font-mono font-medium text-rose-600">
+        {match[1]}
+      </code>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(<span key={`i-${lastIndex}`}>{text.slice(lastIndex)}</span>);
+  }
+
+  if (parts.length === 0) return <>{text}</>;
+  return <>{parts}</>;
 }
 
 /* ─── Fullscreen Permission Gate ─── */
@@ -584,9 +659,9 @@ export default function TakeQuiz() {
                     )}
                     <span className="ml-auto text-xs font-medium text-zinc-400">{idx + 1} / {total}</span>
                   </div>
-                  <h2 className="text-lg font-semibold leading-relaxed text-zinc-900">
-                    {q.questionText}
-                  </h2>
+                  <div className="text-lg font-semibold leading-relaxed text-zinc-900 overflow-y-auto scrollbar-hide flex-1">
+                    {renderQuestionText(q.questionText)}
+                  </div>
                 </div>
 
                 {/* Column 2: Options */}

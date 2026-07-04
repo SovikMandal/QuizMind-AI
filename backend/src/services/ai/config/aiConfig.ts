@@ -2,6 +2,7 @@ import { AIProvider } from "../AIProvider";
 import { GeminiProvider } from "../providers/GeminiProvider";
 import { AnthropicProvider } from "../providers/AnthropicProvider";
 import { OpenRouterProvider } from "../providers/OpenRouterProvider";
+import { CloudflareProvider } from "../providers/CloudflareProvider";
 import { env } from "../../../config/env";
 import { ApiError } from "../../../utils/ApiError";
 import { logger } from "../../../utils/logger";
@@ -26,6 +27,13 @@ export function getAIProvider(): AIProvider {
     case "openrouter":
       logger.info(`Using OpenRouter provider (model: ${env.OPENROUTER_MODEL})`);
       return new OpenRouterProvider(apiKey, env.OPENROUTER_MODEL);
+    case "cloudflare":
+      const accountId = env.CLOUDFLARE_ACCOUNT_ID;
+      if (!accountId) {
+        throw new ApiError(503, "Cloudflare AI requires CLOUDFLARE_ACCOUNT_ID env var.");
+      }
+      logger.info(`Using Cloudflare AI provider (model: ${env.CLOUDFLARE_MODEL})`);
+      return new CloudflareProvider(apiKey, accountId, env.CLOUDFLARE_MODEL);
     case "openai":
     case "ollama":
       throw new ApiError(501, `AI provider "${provider}" is not yet implemented`);

@@ -30,7 +30,9 @@ const envSchema = z.object({
     .transform((v) => v === "true"),
   GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
   ANTHROPIC_MODEL: z.string().default("claude-3-5-sonnet-20241022"),
-  OPENROUTER_MODEL: z.string().default("openrouter/owl-alpha"),
+  OPENROUTER_MODEL: z.string().default("google/gemma-4-31b-it:free"),
+  CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
+  CLOUDFLARE_MODEL: z.string().default("@cf/meta/llama-3.1-70b-instruct"),
 
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),

@@ -563,13 +563,14 @@ export default function TakeQuiz() {
           <div className="flex flex-col h-full">
             {/* Single Card covering everything */}
             <Card className="border-0 shadow-none rounded-none border-l-0 flex-1 flex flex-col overflow-hidden">
-              {/* Question Header */}
-              <div className="shrink-0 flex items-center justify-between px-6 py-3 border-b border-zinc-200">
-                <div className="flex items-center gap-3">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2b7fff] to-[#1a6ef0] text-sm font-bold text-white shadow-sm">
-                    {idx + 1}
-                  </span>
-                  <div className="flex items-center gap-2">
+              {/* Two Column: Question (40%) | Options (60%) */}
+              <div className="flex-1 grid lg:grid-cols-[40%_60%] min-h-0">
+                {/* Column 1: Question */}
+                <div className="p-6 lg:p-8 flex flex-col border-r border-zinc-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#2b7fff] to-[#1a6ef0] text-xs font-bold text-white">
+                      {idx + 1}
+                    </span>
                     <Badge className="bg-white border border-zinc-200 text-zinc-700 shadow-sm">{typeLabel[q.questionType] ?? q.questionType}</Badge>
                     {q.difficulty && (
                       <Badge className={cn(
@@ -581,18 +582,8 @@ export default function TakeQuiz() {
                         {q.difficulty}
                       </Badge>
                     )}
+                    <span className="ml-auto text-xs font-medium text-zinc-400">{idx + 1} / {total}</span>
                   </div>
-                </div>
-                <span className="rounded-lg bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-500">
-                  {idx + 1} / {total}
-                </span>
-              </div>
-
-              {/* Two Column: Question | Options */}
-              <div className="flex-1 grid lg:grid-cols-2 min-h-0">
-                {/* Column 1: Question */}
-                <div className="p-6 lg:p-8 flex flex-col border-r border-zinc-200">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-4">Question</h3>
                   <h2 className="text-lg font-semibold leading-relaxed text-zinc-900">
                     {q.questionText}
                   </h2>
@@ -600,9 +591,6 @@ export default function TakeQuiz() {
 
                 {/* Column 2: Options */}
                 <div className="p-6 lg:p-8 flex flex-col">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-4">
-                    {q.options && q.options.length ? "Choose your answer" : "Your answer"}
-                  </h3>
                   {q.options && q.options.length ? (
                     <div className="flex flex-col gap-3 flex-1">
                       {q.options.map((o, i) => {

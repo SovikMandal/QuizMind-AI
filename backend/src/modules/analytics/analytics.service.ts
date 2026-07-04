@@ -46,7 +46,7 @@ export const AnalyticsService = {
     if (mine) {
       const answers = await prisma.answer.findMany({
         where: { participantId: mine.id },
-        include: { question: { select: { questionText: true, correctAnswer: true, orderIndex: true, options: true } } },
+        include: { question: { select: { questionText: true, correctAnswer: true, orderIndex: true, options: true, explanation: true } } },
         orderBy: { question: { orderIndex: "asc" } },
       });
       breakdown = answers.map((a) => ({
@@ -56,6 +56,7 @@ export const AnalyticsService = {
         isCorrect: a.isCorrect,
         pointsEarned: a.pointsEarned,
         options: a.question.options,
+        explanation: a.question.explanation,
       }));
     }
 

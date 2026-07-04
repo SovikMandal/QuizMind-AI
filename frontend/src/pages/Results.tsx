@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   BarChart3,
   RotateCcw,
+  Lightbulb,
 } from "lucide-react";
 import { api, apiError } from "@/lib/api";
 import { Button, Card, Badge, cn } from "@/components/ui";
@@ -29,6 +30,7 @@ interface ResultsData {
     isCorrect: boolean | null;
     pointsEarned: number;
     options?: { id: string; text: string; isCorrect?: boolean }[] | null;
+    explanation?: string | null;
   }[];
   leaderboard: { rank: number | null; username: string; score: number; status: "completed" | "in_progress" }[];
 }
@@ -222,6 +224,17 @@ export default function Results() {
                         <Badge className="rounded-full bg-emerald-100 text-emerald-700">{b.correctAnswer}</Badge>
                       </>
                     )}
+                  </div>
+                )}
+
+                {/* Explanation */}
+                {b.explanation && (
+                  <div className="mt-4 ml-9 flex gap-3 rounded-xl border border-amber-100 bg-amber-50/60 px-4 py-3">
+                    <Lightbulb className="size-4 shrink-0 text-amber-500 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">Explanation</p>
+                      <p className="mt-1 text-sm leading-relaxed text-zinc-700">{b.explanation}</p>
+                    </div>
                   </div>
                 )}
               </Card>

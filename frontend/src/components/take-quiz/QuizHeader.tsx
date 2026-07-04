@@ -1,4 +1,4 @@
-import { Radio, Timer, Send, Shield, AlertTriangle } from "lucide-react";
+import { Radio, Timer, Send, Shield, AlertTriangle, Users } from "lucide-react";
 import { cn } from "@/components/ui";
 import { fmt } from "./utils";
 
@@ -7,6 +7,7 @@ interface Props {
   subject?: string | null;
   difficulty?: string | null;
   timeLeft: number;
+  liveCount: number;
   isLive: boolean;
   violations: number;
   submitting: boolean;
@@ -19,6 +20,7 @@ export function QuizHeader({
   subject,
   difficulty,
   timeLeft,
+  liveCount,
   isLive,
   violations,
   submitting,
@@ -58,6 +60,14 @@ export function QuizHeader({
 
         {/* Right: Status + Submit */}
         <div className="flex items-center gap-3">
+          {liveCount > 0 && (
+            <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-zinc-50 px-3 py-2">
+              <Users className="size-3.5 text-zinc-400" />
+              <span className="text-xs font-medium text-zinc-600">
+                <span className="font-bold text-zinc-900">{liveCount}</span> live
+              </span>
+            </div>
+          )}
           {isLive && (
             <div className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2">
               <Radio className="size-3 text-red-500 animate-pulse" />

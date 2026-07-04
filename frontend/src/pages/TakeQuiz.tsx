@@ -46,6 +46,7 @@ export default function TakeQuiz() {
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
   const [idx, setIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [liveCount, setLiveCount] = useState(0);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
 
   const questions = useMemo(() => state?.questions ?? [], [state]);
@@ -146,6 +147,7 @@ export default function TakeQuiz() {
     socket.on("connect", () => {
       socket.emit("presence_join", { sessionId });
     });
+    socket.on("presence_update", (d: { count: number }) => setLiveCount(d.count));
     return () => {
       socket.disconnect();
     };
@@ -195,6 +197,7 @@ export default function TakeQuiz() {
         subject={state.subject}
         difficulty={state.difficulty}
         timeLeft={timeLeft}
+        liveCount={liveCount}
         isLive={isLive}
         violations={violations}
         submitting={submitting}
